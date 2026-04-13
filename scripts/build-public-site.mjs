@@ -17,13 +17,18 @@ for (const locale of LOCALES) {
   const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   const productUrls = urls.filter((url) => url.includes(locale.prefix));
   const entries = productUrls.map((url) => buildEntry(locale, url));
+  const tree = buildTree(entries);
+  const series = buildSeries(entries, locale.code);
   locales[locale.code] = {
     code: locale.code,
     label: locale.label,
     total: entries.length,
     models: entries.filter((entry) => entry.kind === "model").length,
     directories: entries.filter((entry) => entry.kind === "directory").length,
-    entries
+    seriesCount: series.length,
+    entries,
+    tree,
+    series
   };
 }
 
@@ -40,19 +45,86 @@ await writeFile(path.join(SITE_DIR, "index.html"), renderHtml(), "utf8");
 function buildEntry(locale, url) {
   const parsed = new URL(url);
   const parts = parsed.pathname.split("/").filter(Boolean);
-  const afterProducts = parts.slice(2);
-  const last = afterProducts.at(-1) || "";
-  const depth = parts.length;
-  const kind = depth >= 6 ? "model" : "directory";
+  const productPath = parts.slice(2);
+  const slug = productPath.at(-1) || "";
+  const kind = parts.length >= 6 ? "model" : "directory";
   return {
     locale: locale.code,
     url,
-    depth,
+    depth: parts.length,
     kind,
-    slug: last,
-    name: displayName(locale.code, afterProducts),
-    path: afterProducts
+    slug,
+    path: productPath,
+    name: displayName(locale.code, productPath)
   };
+}
+
+function buildTree(entries) {
+  const root = { name: "Products", key: "root", children: [] };
+  const nodeMap = new Map([["root", root]]);
+
+  for (const entry of entries.filter((item) => item.kind === "directory")) {
+    let parentKey = "root";
+    for (let index = 0; index < entry.path.length; index += 1) {
+      const segmentPath = entry.path.slice(0, index + 1);
+      const key = segmentPath.join("/");
+      if (!nodeMap.has(key)) {
+        nodeMap.set(key, {
+          key,
+          name: displayName(entry.locale, segmentPath),
+          url: buildUrl(entry.locale, segmentPath),
+          children: []
+        });
+        nodeMap.get(parentKey).children.push(nodeMap.get(key));
+      }
+      parentKey = key;
+    }
+  }
+
+  sortTree(root);
+  return root;
+}
+
+function sortTree(node) {
+  node.children.sort((a, b) => a.name.localeCompare(b.name));
+  node.children.forEach(sortTree);
+}
+
+function buildSeries(entries, localeCode) {
+  const models = entries.filter((entry) => entry.kind === "model");
+  const grouped = new Map();
+
+  for (const model of models) {
+    const seriesPath = model.path.slice(0, -1);
+    const key = seriesPath.join("/");
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        key,
+        locale: localeCode,
+        name: displayName(localeCode, seriesPath),
+        path: seriesPath,
+        url: buildUrl(localeCode, seriesPath),
+        models: []
+      });
+    }
+    grouped.get(key).models.push({
+      name: model.name,
+      slug: model.slug,
+      url: model.url
+    });
+  }
+
+  return [...grouped.values()]
+    .map((series) => ({
+      ...series,
+      modelCount: series.models.length,
+      models: series.models.sort((a, b) => a.name.localeCompare(b.name))
+    }))
+    .sort((a, b) => b.modelCount - a.modelCount || a.name.localeCompare(b.name));
+}
+
+function buildUrl(localeCode, productPath) {
+  return `https://www.hikvision.com/${localeCode}/products/${productPath.join("/")}/`;
 }
 
 function displayName(localeCode, segments) {
@@ -100,11 +172,11 @@ function renderHtml() {
         linear-gradient(180deg, #f6efe5 0%, #efe7db 100%);
     }
     .shell {
-      max-width: 1440px;
+      max-width: 1480px;
       margin: 0 auto;
       padding: 24px;
       display: grid;
-      grid-template-columns: 330px 1fr;
+      grid-template-columns: 320px 1fr;
       gap: 20px;
     }
     .panel {
@@ -143,10 +215,10 @@ function renderHtml() {
     }
     button.active {
       background: var(--brand);
-      color: white;
+      color: #fff;
       border-color: var(--brand);
     }
-    input, select {
+    input {
       width: 100%;
       padding: 11px 12px;
       border-radius: 12px;
@@ -154,37 +226,43 @@ function renderHtml() {
       background: white;
       font: inherit;
     }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+    .count { font-size: 22px; font-weight: 700; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 14px;
     }
     .card {
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 16px;
-      background: white;
+      background: #fff;
     }
-    .card a {
-      color: var(--accent);
-      text-decoration: none;
-      word-break: break-all;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin: 16px 0;
-    }
-    .stat {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px;
-      background: white;
-    }
-    .count { font-size: 22px; font-weight: 700; }
+    .card a { color: var(--accent); text-decoration: none; word-break: break-all; }
+    .card a:hover { text-decoration: underline; }
+    .tree ul { list-style: none; margin: 8px 0 0; padding-left: 18px; border-left: 1px solid var(--line); }
+    .tree li { margin: 8px 0; position: relative; }
+    .tree li::before { content: ""; position: absolute; left: -18px; top: 12px; width: 12px; border-top: 1px solid var(--line); }
+    .series-list { max-height: 70vh; overflow: auto; display: grid; gap: 10px; }
+    .series-item { width: 100%; text-align: left; border-radius: 14px; }
+    .model-list { display: grid; gap: 10px; max-height: 70vh; overflow: auto; }
+    .model-link { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--accent); background: #fff; text-decoration: none; }
+    .layout-tabs { display: flex; gap: 10px; margin-bottom: 14px; }
     @media (max-width: 980px) {
       .shell { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -192,9 +270,9 @@ function renderHtml() {
   <div class="shell">
     <aside class="panel">
       <h1>Hikvision Full Product Catalog</h1>
-      <p class="muted">Public full catalog generated from Hikvision public sitemaps. This page focuses on complete product coverage first.</p>
+      <p class="muted">Full public catalog from Hikvision sitemaps. This version adds full series grouping and per-series model lists.</p>
       <div class="hero">
-        <div class="badge">Full Catalog</div>
+        <div class="badge">Full Coverage</div>
         <p id="updated" class="muted"></p>
       </div>
       <h3>Language</h3>
@@ -203,7 +281,7 @@ function renderHtml() {
         <button data-locale="en">English</button>
       </div>
       <h3 style="margin-top:18px;">Search</h3>
-      <input id="search" placeholder="Search model / slug / path">
+      <input id="search" placeholder="Search model / series / slug / path">
       <h3 style="margin-top:18px;">Type</h3>
       <div class="filters">
         <button class="active" data-kind="all">All</button>
@@ -216,47 +294,75 @@ function renderHtml() {
         <div class="stat"><div class="muted">Total URLs</div><div class="count" id="total"></div></div>
         <div class="stat"><div class="muted">Models</div><div class="count" id="models"></div></div>
         <div class="stat"><div class="muted">Directories</div><div class="count" id="directories"></div></div>
+        <div class="stat"><div class="muted">Series</div><div class="count" id="seriesCount"></div></div>
       </div>
-      <div id="results" class="grid"></div>
+      <div class="layout-tabs">
+        <button class="active" data-view="catalog">Catalog</button>
+        <button data-view="series">Series</button>
+        <button data-view="tree">Tree</button>
+      </div>
+      <div id="content"></div>
     </main>
   </div>
   <script>
-    const state = { locale: 'cn', kind: 'all', query: '' };
+    const state = { locale: 'cn', kind: 'all', query: '', view: 'catalog', seriesKey: null };
     const updated = document.getElementById('updated');
     const total = document.getElementById('total');
     const models = document.getElementById('models');
     const directories = document.getElementById('directories');
-    const results = document.getElementById('results');
+    const seriesCount = document.getElementById('seriesCount');
+    const content = document.getElementById('content');
 
     fetch('./catalog.json')
       .then(r => r.json())
       .then(data => {
         updated.textContent = 'Updated: ' + new Date(data.generatedAt).toLocaleString();
+
+        const renderTree = (node) => {
+          const children = (node.children || []).map(renderTree).join('');
+          const label = node.url ? '<a href="' + node.url + '" target="_blank" rel="noreferrer">' + node.name + '</a>' : node.name;
+          return '<li>' + label + (children ? '<ul>' + children + '</ul>' : '') + '</li>';
+        };
+
         const render = () => {
           const locale = data.locales[state.locale];
           total.textContent = locale.total.toLocaleString();
           models.textContent = locale.models.toLocaleString();
           directories.textContent = locale.directories.toLocaleString();
+          seriesCount.textContent = locale.seriesCount.toLocaleString();
           const q = state.query.trim().toLowerCase();
-          let entries = locale.entries;
-          if (state.kind !== 'all') entries = entries.filter(e => e.kind === state.kind);
-          if (q) entries = entries.filter(e => [e.name, e.slug, e.path.join('/')].join(' ').toLowerCase().includes(q));
-          const view = entries.slice(0, 500);
-          results.innerHTML = view.map(entry => \`
-            <article class="card">
-              <div class="badge">\${entry.kind}</div>
-              <h3>\${entry.name}</h3>
-              <p class="muted">Depth: \${entry.depth} | Slug: \${entry.slug}</p>
-              <p class="muted">\${entry.path.join(' / ')}</p>
-              <a href="\${entry.url}" target="_blank" rel="noreferrer">\${entry.url}</a>
-            </article>
-          \`).join('');
+
+          if (state.view === 'catalog') {
+            let entries = locale.entries;
+            if (state.kind !== 'all') entries = entries.filter(e => e.kind === state.kind);
+            if (q) entries = entries.filter(e => [e.name, e.slug, e.path.join('/')].join(' ').toLowerCase().includes(q));
+            const view = entries.slice(0, 500);
+            content.innerHTML = '<div class="grid">' + view.map(entry => '<article class="card"><div class="badge">' + entry.kind + '</div><h3>' + entry.name + '</h3><p class="muted">Depth: ' + entry.depth + ' | Slug: ' + entry.slug + '</p><p class="muted">' + entry.path.join(' / ') + '</p><a href="' + entry.url + '" target="_blank" rel="noreferrer">' + entry.url + '</a></article>').join('') + '</div>';
+            return;
+          }
+
+          if (state.view === 'tree') {
+            content.innerHTML = '<div class="card tree"><h2>' + locale.label + ' Tree</h2><ul>' + renderTree(locale.tree) + '</ul></div>';
+            return;
+          }
+
+          let series = locale.series;
+          if (q) series = series.filter(s => [s.name, s.path.join('/'), ...s.models.map(m => m.name)].join(' ').toLowerCase().includes(q));
+          const selected = series.find(s => s.key === state.seriesKey) || series[0];
+          state.seriesKey = selected ? selected.key : null;
+          const left = '<div class="series-list">' + series.slice(0, 500).map(s => '<button class="series-item ' + (selected && s.key === selected.key ? 'active' : '') + '" data-series="' + s.key + '">' + s.name + ' (' + s.modelCount + ')</button>').join('') + '</div>';
+          let right = '<div class="card"><h2>No series found</h2></div>';
+          if (selected) {
+            right = '<div class="card"><div class="badge">series</div><h2>' + selected.name + '</h2><p class="muted">Models: ' + selected.modelCount + '</p><p class="muted">' + selected.path.join(' / ') + '</p><p><a href="' + selected.url + '" target="_blank" rel="noreferrer">' + selected.url + '</a></p><div class="model-list">' + selected.models.slice(0, 1000).map(m => '<a class="model-link" href="' + m.url + '" target="_blank" rel="noreferrer">' + m.name + '</a>').join('') + '</div></div>';
+          }
+          content.innerHTML = '<div style="display:grid;grid-template-columns:340px 1fr;gap:16px;">' + left + right + '</div>';
         };
 
         document.querySelector('.tabs').addEventListener('click', (event) => {
           const btn = event.target.closest('button[data-locale]');
           if (!btn) return;
           state.locale = btn.dataset.locale;
+          state.seriesKey = null;
           document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
           render();
         });
@@ -269,8 +375,23 @@ function renderHtml() {
           render();
         });
 
+        document.querySelector('.layout-tabs').addEventListener('click', (event) => {
+          const btn = event.target.closest('button[data-view]');
+          if (!btn) return;
+          state.view = btn.dataset.view;
+          document.querySelectorAll('.layout-tabs button').forEach(b => b.classList.toggle('active', b === btn));
+          render();
+        });
+
         document.getElementById('search').addEventListener('input', (event) => {
           state.query = event.target.value;
+          render();
+        });
+
+        content.addEventListener('click', (event) => {
+          const btn = event.target.closest('button[data-series]');
+          if (!btn) return;
+          state.seriesKey = btn.dataset.series;
           render();
         });
 
