@@ -14,9 +14,12 @@ await mkdir(SITE_DIR, { recursive: true });
 const locales = {};
 for (const locale of LOCALES) {
   const xml = await fetch(locale.sitemap, { headers: { "user-agent": "Mozilla/5.0" } }).then((r) => r.text());
-  const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  const productUrls = urls.filter((url) => url.includes(locale.prefix));
-  const entries = productUrls.map((url) => buildEntry(locale, url));
+  const sitemapEntries = [...xml.matchAll(/<url><loc>([^<]+)<\/loc>(?:<lastmod>([^<]+)<\/lastmod>)?/g)].map((m) => ({
+    url: m[1],
+    lastmod: m[2] || ""
+  }));
+  const productEntries = sitemapEntries.filter((entry) => entry.url.includes(locale.prefix));
+  const entries = productEntries.map((entry) => buildEntry(locale, entry));
   const tree = buildTree(entries);
   const series = buildSeries(entries, locale.code);
   locales[locale.code] = {
@@ -42,15 +45,16 @@ await writeFile(path.join(SITE_DIR, "catalog.json"), JSON.stringify(payload), "u
 await writeFile(path.join(SITE_DIR, ".nojekyll"), "", "utf8");
 await writeFile(path.join(SITE_DIR, "index.html"), renderHtml(), "utf8");
 
-function buildEntry(locale, url) {
-  const parsed = new URL(url);
+function buildEntry(locale, sitemapEntry) {
+  const parsed = new URL(sitemapEntry.url);
   const parts = parsed.pathname.split("/").filter(Boolean);
   const productPath = parts.slice(2);
   const slug = productPath.at(-1) || "";
   const kind = parts.length >= 6 ? "model" : "directory";
   return {
     locale: locale.code,
-    url,
+    url: sitemapEntry.url,
+    lastmod: sitemapEntry.lastmod,
     depth: parts.length,
     kind,
     slug,
@@ -228,7 +232,7 @@ function renderHtml() {
     }
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 12px;
       margin-bottom: 16px;
     }
@@ -260,6 +264,10 @@ function renderHtml() {
     .model-list { display: grid; gap: 10px; max-height: 70vh; overflow: auto; }
     .model-link { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--accent); background: #fff; text-decoration: none; }
     .layout-tabs { display: flex; gap: 10px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #faf1e8; position: sticky; top: 0; }
+    .scroll { overflow: auto; }
     @media (max-width: 980px) {
       .shell { grid-template-columns: 1fr; }
       .stats { grid-template-columns: repeat(2, 1fr); }
@@ -295,10 +303,12 @@ function renderHtml() {
         <div class="stat"><div class="muted">Models</div><div class="count" id="models"></div></div>
         <div class="stat"><div class="muted">Directories</div><div class="count" id="directories"></div></div>
         <div class="stat"><div class="muted">Series</div><div class="count" id="seriesCount"></div></div>
+        <div class="stat"><div class="muted">Changed Specs</div><div class="count" id="changedSpecs"></div></div>
       </div>
       <div class="layout-tabs">
         <button class="active" data-view="catalog">Catalog</button>
         <button data-view="series">Series</button>
+        <button data-view="diffs">Diffs</button>
         <button data-view="tree">Tree</button>
       </div>
       <div id="content"></div>
@@ -311,12 +321,16 @@ function renderHtml() {
     const models = document.getElementById('models');
     const directories = document.getElementById('directories');
     const seriesCount = document.getElementById('seriesCount');
+    const changedSpecs = document.getElementById('changedSpecs');
     const content = document.getElementById('content');
 
-    fetch('./catalog.json')
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      fetch('./catalog.json').then(r => r.json()),
+      fetch('./diff-data.json').then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([data, diffData]) => {
+        const diffLocales = diffData?.locales || {};
         updated.textContent = 'Updated: ' + new Date(data.generatedAt).toLocaleString();
+        changedSpecs.textContent = (diffData?.changes?.changedSpecs || 0).toLocaleString();
 
         const renderTree = (node) => {
           const children = (node.children || []).map(renderTree).join('');
@@ -343,6 +357,23 @@ function renderHtml() {
 
           if (state.view === 'tree') {
             content.innerHTML = '<div class="card tree"><h2>' + locale.label + ' Tree</h2><ul>' + renderTree(locale.tree) + '</ul></div>';
+            return;
+          }
+
+          if (state.view === 'diffs') {
+            const localeDiff = diffLocales[state.locale];
+            let series = localeDiff?.topSeries || [];
+            if (q) series = series.filter(s => [s.name, ...s.models.map(m => m.name)].join(' ').toLowerCase().includes(q));
+            const selected = series.find(s => s.key === state.seriesKey) || series[0];
+            state.seriesKey = selected ? selected.key : null;
+            const left = '<div class="series-list">' + series.map(s => '<button class="series-item ' + (selected && s.key === selected.key ? 'active' : '') + '" data-series="' + s.key + '">' + s.name + ' (' + s.specCoverage + '/' + s.modelCount + ')</button>').join('') + '</div>';
+            let right = '<div class="card"><h2>No diff data yet</h2><p class="muted">Run the diff build to populate series comparisons.</p></div>';
+            if (selected) {
+              const modelHeaders = selected.models.map(m => '<th>' + m.name + '</th>').join('');
+              const rows = selected.differences.map(diff => '<tr><td>' + diff.field + '</td>' + selected.models.map(m => '<td>' + (diff.values[m.name] || '') + '</td>').join('') + '</tr>').join('');
+              right = '<div class="card"><div class="badge">diffs</div><h2>' + selected.name + '</h2><p class="muted">Spec coverage: ' + selected.specCoverage + ' / ' + selected.modelCount + ' models</p><p><a href="' + selected.url + '" target="_blank" rel="noreferrer">' + selected.url + '</a></p><div class="scroll"><table><thead><tr><th>Field</th>' + modelHeaders + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+            }
+            content.innerHTML = '<div style="display:grid;grid-template-columns:340px 1fr;gap:16px;">' + left + right + '</div>';
             return;
           }
 
