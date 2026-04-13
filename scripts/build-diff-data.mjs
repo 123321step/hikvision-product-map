@@ -353,6 +353,60 @@ function normalizeCharset(charset) {
 }
 
 async function discoverChinesePdplistModels(seriesSeed, maxModelsPerSeries) {
+  const apiDiscovered = await discoverChineseModelsViaApi(seriesSeed, maxModelsPerSeries);
+  const coveredSeries = new Set(apiDiscovered.map((item) => item.seriesKey));
+  const missingSeries = seriesSeed.filter((series) => !coveredSeries.has(series.seriesKey));
+  if (missingSeries.length === 0) {
+    return apiDiscovered;
+  }
+
+  const fallbackDiscovered = await discoverChineseModelsViaBrowser(missingSeries, maxModelsPerSeries);
+  return [...apiDiscovered, ...fallbackDiscovered];
+}
+
+async function discoverChineseModelsViaApi(seriesSeed, maxModelsPerSeries) {
+  const discovered = [];
+  for (const series of seriesSeed) {
+    try {
+      const html = await fetch(series.url, {
+        headers: { "user-agent": "Mozilla/5.0" }
+      }).then((response) => response.text());
+      const $ = cheerio.load(html);
+      const list = $(".product-page-list[data-url][data-value]").first();
+      const endpoint = list.attr("data-url");
+      const directory = list.attr("data-value");
+      if (!endpoint || !directory) {
+        continue;
+      }
+
+      const apiUrl = new URL(endpoint, series.url).href;
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "user-agent": "Mozilla/5.0"
+        },
+        body: new URLSearchParams({ directory }).toString()
+      });
+      const payload = await response.json();
+      const productList = payload?.data?.productList || [];
+      for (const product of productList.slice(0, maxModelsPerSeries)) {
+        if (!product?.pagePath) continue;
+        discovered.push({
+          locale: "cn",
+          seriesKey: series.seriesKey,
+          seriesName: series.seriesName,
+          modelName: product.productModel || product.modelName || "",
+          url: new URL(product.pagePath, series.url).href,
+          lastmod: ""
+        });
+      }
+    } catch {}
+  }
+  return dedupeModels(discovered);
+}
+
+async function discoverChineseModelsViaBrowser(seriesSeed, maxModelsPerSeries) {
   const executablePath = await findExecutable();
   const browser = executablePath
     ? await chromium.launch({ headless: true, executablePath })
@@ -398,12 +452,16 @@ async function discoverChinesePdplistModels(seriesSeed, maxModelsPerSeries) {
     await context.close();
     await browser.close();
   }
-  return discovered;
+  return dedupeModels(discovered);
 }
 
 function normalizeChineseSeriesUrl(series) {
   const path = series.path.map((segment, index) => (index < 2 ? segment.toLowerCase() : segment)).join("/");
   return `https://www.hikvision.com/cn/products/${path}/`;
+}
+
+function dedupeModels(items) {
+  return [...new Map(items.map((item) => [item.url, item])).values()];
 }
 
 async function findExecutable() {
