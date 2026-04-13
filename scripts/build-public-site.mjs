@@ -1,4 +1,78 @@
-<!doctype html>
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+const ROOT = process.cwd();
+const SITE_DIR = path.join(ROOT, "site");
+
+const LOCALES = [
+  { code: "cn", label: "中文", sitemap: "https://www.hikvision.com/cn/sitemap.xml", prefix: "/cn/products/" },
+  { code: "en", label: "English", sitemap: "https://www.hikvision.com/en/sitemap.xml", prefix: "/en/products/" }
+];
+
+await mkdir(SITE_DIR, { recursive: true });
+
+const locales = {};
+for (const locale of LOCALES) {
+  const xml = await fetch(locale.sitemap, { headers: { "user-agent": "Mozilla/5.0" } }).then((r) => r.text());
+  const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const productUrls = urls.filter((url) => url.includes(locale.prefix));
+  const entries = productUrls.map((url) => buildEntry(locale, url));
+  locales[locale.code] = {
+    code: locale.code,
+    label: locale.label,
+    total: entries.length,
+    models: entries.filter((entry) => entry.kind === "model").length,
+    directories: entries.filter((entry) => entry.kind === "directory").length,
+    entries
+  };
+}
+
+const payload = {
+  generatedAt: new Date().toISOString(),
+  source: "Hikvision public sitemap",
+  locales
+};
+
+await writeFile(path.join(SITE_DIR, "catalog.json"), JSON.stringify(payload), "utf8");
+await writeFile(path.join(SITE_DIR, ".nojekyll"), "", "utf8");
+await writeFile(path.join(SITE_DIR, "index.html"), renderHtml(), "utf8");
+
+function buildEntry(locale, url) {
+  const parsed = new URL(url);
+  const parts = parsed.pathname.split("/").filter(Boolean);
+  const afterProducts = parts.slice(2);
+  const last = afterProducts.at(-1) || "";
+  const depth = parts.length;
+  const kind = depth >= 6 ? "model" : "directory";
+  return {
+    locale: locale.code,
+    url,
+    depth,
+    kind,
+    slug: last,
+    name: displayName(locale.code, afterProducts),
+    path: afterProducts
+  };
+}
+
+function displayName(localeCode, segments) {
+  const last = segments.at(-1) || "";
+  if (/^(ds|ids|i?ds)-/i.test(last)) return last;
+  if (/^s\d+$/i.test(last)) return last.toUpperCase();
+  const useful = [...segments].reverse().find((segment) => !/^s\d+$/i.test(segment)) || last;
+  return localeCode === "cn" ? useful : humanize(useful);
+}
+
+function humanize(value) {
+  return String(value || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+function renderHtml() {
+  return `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
@@ -168,15 +242,15 @@
           if (state.kind !== 'all') entries = entries.filter(e => e.kind === state.kind);
           if (q) entries = entries.filter(e => [e.name, e.slug, e.path.join('/')].join(' ').toLowerCase().includes(q));
           const view = entries.slice(0, 500);
-          results.innerHTML = view.map(entry => `
+          results.innerHTML = view.map(entry => \`
             <article class="card">
-              <div class="badge">${entry.kind}</div>
-              <h3>${entry.name}</h3>
-              <p class="muted">Depth: ${entry.depth} | Slug: ${entry.slug}</p>
-              <p class="muted">${entry.path.join(' / ')}</p>
-              <a href="${entry.url}" target="_blank" rel="noreferrer">${entry.url}</a>
+              <div class="badge">\${entry.kind}</div>
+              <h3>\${entry.name}</h3>
+              <p class="muted">Depth: \${entry.depth} | Slug: \${entry.slug}</p>
+              <p class="muted">\${entry.path.join(' / ')}</p>
+              <a href="\${entry.url}" target="_blank" rel="noreferrer">\${entry.url}</a>
             </article>
-          `).join('');
+          \`).join('');
         };
 
         document.querySelector('.tabs').addEventListener('click', (event) => {
@@ -204,4 +278,5 @@
       });
   </script>
 </body>
-</html>
+</html>`;
+}
