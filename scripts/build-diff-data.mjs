@@ -24,6 +24,7 @@ const SERIES_PER_LOCALE = Number(args["series-per-locale"] || 8);
 const MODELS_PER_SERIES = Number(args["models-per-series"] || 25);
 const MAX_FETCH = Number(args["max-fetch"] || 300);
 const CONCURRENCY = Number(args.concurrency || 6);
+const CN_SERIES_CANDIDATES = Number(args["cn-series-candidates"] || Math.max(SERIES_PER_LOCALE * 3, SERIES_PER_LOCALE));
 const BROWSER_PATHS = [
   process.env.PLAYWRIGHT_EXECUTABLE_PATH,
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -48,7 +49,8 @@ const previousSnapshot = await readJson(SNAPSHOT_FILE, null);
 const targetModels = [];
 const cnSeriesSeed = [];
 for (const locale of Object.values(catalog.locales)) {
-  for (const series of locale.series.slice(0, SERIES_PER_LOCALE)) {
+  const seriesLimit = locale.code === "cn" ? CN_SERIES_CANDIDATES : SERIES_PER_LOCALE;
+  for (const series of locale.series.slice(0, seriesLimit)) {
     if (locale.code === "cn") {
       cnSeriesSeed.push({
         locale: locale.code,
@@ -130,7 +132,9 @@ function buildLocaleDiff(locale, cacheItems) {
       return acc;
     }, {});
 
-  const series = locale.series.slice(0, SERIES_PER_LOCALE).map((series) => {
+  const seriesCandidates = locale.series
+    .slice(0, locale.code === "cn" ? CN_SERIES_CANDIDATES : SERIES_PER_LOCALE)
+    .map((series) => {
     const cachedModels = locale.code === "cn"
       ? (cachedBySeries[series.key] || []).slice(0, MODELS_PER_SERIES)
       : series.models
@@ -152,6 +156,13 @@ function buildLocaleDiff(locale, cacheItems) {
       differences: buildSeriesDifferences(cachedModels).slice(0, 40)
     };
   });
+
+  const series = locale.code === "cn"
+    ? [
+        ...seriesCandidates.filter((item) => item.specCoverage > 0),
+        ...seriesCandidates.filter((item) => item.specCoverage === 0)
+      ].slice(0, SERIES_PER_LOCALE)
+    : seriesCandidates;
 
   return {
     code: locale.code,
