@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import * as cheerio from "cheerio";
@@ -24,10 +24,18 @@ const SERIES_PER_LOCALE = Number(args["series-per-locale"] || 8);
 const MODELS_PER_SERIES = Number(args["models-per-series"] || 25);
 const MAX_FETCH = Number(args["max-fetch"] || 300);
 const CONCURRENCY = Number(args.concurrency || 6);
-const EDGE_PATHS = [
+const BROWSER_PATHS = [
   process.env.PLAYWRIGHT_EXECUTABLE_PATH,
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+  "/usr/bin/microsoft-edge",
+  "/usr/bin/microsoft-edge-stable",
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 ].filter(Boolean);
 
 await mkdir(CACHE_DIR, { recursive: true });
@@ -67,8 +75,12 @@ for (const locale of Object.values(catalog.locales)) {
 }
 
 if (cnSeriesSeed.length > 0) {
-  const discovered = await discoverChinesePdplistModels(cnSeriesSeed, MODELS_PER_SERIES);
-  targetModels.push(...discovered);
+  try {
+    const discovered = await discoverChinesePdplistModels(cnSeriesSeed, MODELS_PER_SERIES);
+    targetModels.push(...discovered);
+  } catch (error) {
+    console.warn(`[cn-discovery] ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 const dedupedTargets = [...new Map(targetModels.map((item) => [item.url, item])).values()];
@@ -342,7 +354,9 @@ function normalizeCharset(charset) {
 
 async function discoverChinesePdplistModels(seriesSeed, maxModelsPerSeries) {
   const executablePath = await findExecutable();
-  const browser = await chromium.launch({ headless: true, executablePath });
+  const browser = executablePath
+    ? await chromium.launch({ headless: true, executablePath })
+    : await chromium.launch({ headless: true });
   const context = await browser.newContext({
     locale: "zh-CN",
     userAgent:
@@ -393,13 +407,13 @@ function normalizeChineseSeriesUrl(series) {
 }
 
 async function findExecutable() {
-  for (const candidate of EDGE_PATHS) {
+  for (const candidate of BROWSER_PATHS) {
     try {
-      await readFile(candidate);
+      await access(candidate);
       return candidate;
     } catch {}
   }
-  throw new Error("Could not find Microsoft Edge for Chinese series discovery.");
+  return null;
 }
 
 function hashObject(value) {
