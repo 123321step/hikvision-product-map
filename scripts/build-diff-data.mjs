@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import * as cheerio from "cheerio";
+import { chromium } from "playwright-core";
 
 const ROOT = process.cwd();
 const SITE_DIR = path.join(ROOT, "site");
@@ -23,6 +24,11 @@ const SERIES_PER_LOCALE = Number(args["series-per-locale"] || 8);
 const MODELS_PER_SERIES = Number(args["models-per-series"] || 25);
 const MAX_FETCH = Number(args["max-fetch"] || 300);
 const CONCURRENCY = Number(args.concurrency || 6);
+const EDGE_PATHS = [
+  process.env.PLAYWRIGHT_EXECUTABLE_PATH,
+  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+].filter(Boolean);
 
 await mkdir(CACHE_DIR, { recursive: true });
 await mkdir(SNAPSHOT_DIR, { recursive: true });
@@ -32,8 +38,18 @@ const previousCache = await readJson(CACHE_FILE, { items: {} });
 const previousSnapshot = await readJson(SNAPSHOT_FILE, null);
 
 const targetModels = [];
+const cnSeriesSeed = [];
 for (const locale of Object.values(catalog.locales)) {
   for (const series of locale.series.slice(0, SERIES_PER_LOCALE)) {
+    if (locale.code === "cn") {
+      cnSeriesSeed.push({
+        locale: locale.code,
+        seriesKey: series.key,
+        seriesName: series.name,
+        url: normalizeChineseSeriesUrl(series)
+      });
+      continue;
+    }
     for (const model of series.models.slice(0, MODELS_PER_SERIES)) {
       const entry = locale.entries.find((item) => item.url === model.url);
       if (entry) {
@@ -48,6 +64,11 @@ for (const locale of Object.values(catalog.locales)) {
       }
     }
   }
+}
+
+if (cnSeriesSeed.length > 0) {
+  const discovered = await discoverChinesePdplistModels(cnSeriesSeed, MODELS_PER_SERIES);
+  targetModels.push(...discovered);
 }
 
 const dedupedTargets = [...new Map(targetModels.map((item) => [item.url, item])).values()];
@@ -89,11 +110,21 @@ await writeFile(SNAPSHOT_FILE, JSON.stringify(currentSnapshot), "utf8");
 await writeFile(path.join(SITE_DIR, "diff-data.json"), JSON.stringify(diffPayload), "utf8");
 
 function buildLocaleDiff(locale, cacheItems) {
+  const cachedBySeries = Object.values(cacheItems)
+    .filter((item) => item?.locale === locale.code && item.valid !== false)
+    .reduce((acc, item) => {
+      if (!acc[item.seriesKey]) acc[item.seriesKey] = [];
+      acc[item.seriesKey].push(item);
+      return acc;
+    }, {});
+
   const series = locale.series.slice(0, SERIES_PER_LOCALE).map((series) => {
-    const cachedModels = series.models
-      .slice(0, MODELS_PER_SERIES)
-      .map((model) => cacheItems[model.url])
-      .filter((item) => item && item.valid !== false);
+    const cachedModels = locale.code === "cn"
+      ? (cachedBySeries[series.key] || []).slice(0, MODELS_PER_SERIES)
+      : series.models
+          .slice(0, MODELS_PER_SERIES)
+          .map((model) => cacheItems[model.url])
+          .filter((item) => item && item.valid !== false);
     return {
       key: series.key,
       name: series.name,
@@ -197,9 +228,10 @@ function compareSnapshots(previous, current) {
 }
 
 async function scrapeSpecPage(target) {
-  const html = await fetch(target.url, {
+  const response = await fetch(target.url, {
     headers: { "user-agent": "Mozilla/5.0" }
-  }).then((response) => response.text());
+  });
+  const html = await decodeHtml(response);
   const $ = cheerio.load(html);
   const clean = (value) =>
     String(value || "")
@@ -253,6 +285,22 @@ async function scrapeSpecPage(target) {
       });
   });
 
+  $(".tech-specs-accordion-desc-list").each((_, list) => {
+    const $list = $(list);
+    const section =
+      clean($list.attr("data-target")) ||
+      clean($list.find(".item-header").first().text()) ||
+      "General";
+    $list.find(".tech-specs-accordion-desc-item").each((__, item) => {
+      const $item = $(item);
+      pushSpec(
+        section,
+        $item.find(".item-title").first().text(),
+        $item.find(".item-desc").first().text()
+      );
+    });
+  });
+
   const productName =
     clean($(".product_title_item").first().text()) ||
     clean($("h1").first().text()) ||
@@ -271,6 +319,87 @@ async function scrapeSpecPage(target) {
     specHash: hashObject(specs),
     valid
   };
+}
+
+async function decodeHtml(response) {
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const contentType = response.headers.get("content-type") || "";
+  const headerCharset = /charset=([^;]+)/i.exec(contentType)?.[1];
+  const sniff = buffer.toString("ascii", 0, Math.min(buffer.length, 2048));
+  const metaCharset =
+    /<meta[^>]+charset=["']?\s*([^"'\s/>]+)/i.exec(sniff)?.[1] ||
+    /<meta[^>]+content=["'][^"']*charset=([^"';\s]+)/i.exec(sniff)?.[1];
+  const charset = normalizeCharset(metaCharset || headerCharset);
+  return new TextDecoder(charset).decode(buffer);
+}
+
+function normalizeCharset(charset) {
+  const value = String(charset || "utf-8").trim().toLowerCase();
+  if (value === "gb2312" || value === "gbk" || value === "gb18030") return "gbk";
+  if (value === "utf8") return "utf-8";
+  return value || "utf-8";
+}
+
+async function discoverChinesePdplistModels(seriesSeed, maxModelsPerSeries) {
+  const executablePath = await findExecutable();
+  const browser = await chromium.launch({ headless: true, executablePath });
+  const context = await browser.newContext({
+    locale: "zh-CN",
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+  });
+
+  const discovered = [];
+  try {
+    for (const series of seriesSeed) {
+      const page = await context.newPage();
+      try {
+        await page.goto(series.url, { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.waitForTimeout(3500);
+        const urls = await page.evaluate((limit) => {
+          const found = [...document.querySelectorAll("a[href],a[data-href]")]
+            .map((anchor) => anchor.getAttribute("href") || anchor.getAttribute("data-href"))
+            .filter(Boolean)
+            .filter((value) => value.includes("/cn/products/pdplist/"))
+            .map((value) => new URL(value, location.origin).href.replace(/[#?].*$/, ""))
+            .map((value) => value.endsWith("/") ? value : value + "/");
+          return [...new Set(found)].slice(0, limit);
+        }, maxModelsPerSeries);
+
+        for (const url of urls) {
+          discovered.push({
+            locale: "cn",
+            seriesKey: series.seriesKey,
+            seriesName: series.seriesName,
+            modelName: "",
+            url,
+            lastmod: ""
+          });
+        }
+      } finally {
+        await page.close();
+      }
+    }
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+  return discovered;
+}
+
+function normalizeChineseSeriesUrl(series) {
+  const path = series.path.map((segment, index) => (index < 2 ? segment.toLowerCase() : segment)).join("/");
+  return `https://www.hikvision.com/cn/products/${path}/`;
+}
+
+async function findExecutable() {
+  for (const candidate of EDGE_PATHS) {
+    try {
+      await readFile(candidate);
+      return candidate;
+    } catch {}
+  }
+  throw new Error("Could not find Microsoft Edge for Chinese series discovery.");
 }
 
 function hashObject(value) {
