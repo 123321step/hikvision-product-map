@@ -52,8 +52,11 @@ const catalog = {
 
 const mindmaps = [];
 for (const locale of Object.values(catalog.locales)) {
+  const localeDiffs = Object.values(diffData?.locales || {}).find((item) => item.code === locale.code)?.topSeries || [];
   const overviewFile = `${locale.code}-overview.mmd`;
+  const seriesOverviewFile = `${locale.code}-series-overview.mmd`;
   await writeFile(path.join(MINDMAP_DIR, overviewFile), overviewMap(locale), "utf8");
+  await writeFile(path.join(MINDMAP_DIR, seriesOverviewFile), seriesOverviewMap(locale, diffLookup), "utf8");
   mindmaps.push({
     locale: locale.code,
     key: `${locale.code}:overview`,
@@ -62,6 +65,15 @@ for (const locale of Object.values(catalog.locales)) {
     file: overviewFile,
     modelCount: locale.models,
     diffFields: 0
+  });
+  mindmaps.push({
+    locale: locale.code,
+    key: `${locale.code}:series-overview`,
+    title: locale.code === "cn" ? "\u7cfb\u5217\u5206\u7c7b\u4e0e\u5dee\u5f02\u603b\u89c8" : "Series Overview And Differences",
+    type: "series-overview",
+    file: seriesOverviewFile,
+    modelCount: locale.models,
+    diffFields: localeDiffs.reduce((sum, item) => sum + (item?.differences?.length || 0), 0)
   });
 
   for (const series of locale.series) {
@@ -195,29 +207,106 @@ function overviewMap(locale) {
   return lines.join("\n");
 }
 
+function seriesOverviewMap(locale, diffLookup) {
+  const groups = new Map();
+  for (const series of locale.series) {
+    const categoryKey = series.path[0] || "Other";
+    if (!groups.has(categoryKey)) {
+      groups.set(categoryKey, []);
+    }
+    groups.get(categoryKey).push(series);
+  }
+
+  const sortedGroups = [...groups.entries()]
+    .map(([category, items]) => [category, items.sort((left, right) => right.modelCount - left.modelCount)])
+    .sort((left, right) => right[1][0].modelCount - left[1][0].modelCount);
+
+  const lines = [
+    "mindmap",
+    `  root(("${esc(locale.code === "cn" ? "按系列分类看产品差异" : "Series View With Differences")}"))`
+  ];
+
+  for (const [category, items] of sortedGroups.slice(0, 10)) {
+    lines.push(`    "${esc(humanizeSegment(locale.code, category))}"`);
+    for (const series of items.slice(0, 8)) {
+      const diff = diffLookup.get(`${locale.code}:${series.key}`);
+      const label = `${series.name} | ${locale.code === "cn" ? "型号" : "models"} ${series.modelCount}`;
+      lines.push(`      "${esc(label)}"`);
+      if (diff?.differences?.length) {
+        lines.push(`        "${locale.code === "cn" ? `已对比 ${diff.specCoverage} 个型号` : `${diff.specCoverage} models compared`}"`);
+        for (const field of diff.differences.slice(0, 3)) {
+          lines.push(`        "${esc(simplifyField(field.field))}"`);
+        }
+      } else {
+        lines.push(`        "${locale.code === "cn" ? "\u6682\u65e0\u89c4\u683c\u5dee\u5f02\u6570\u636e" : "No diff data yet"}"`);
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
 function seriesMap(locale, series, diff) {
+  const category = humanizeSegment(locale.code, series.path[0] || "Other");
+  const subcategory = humanizeSegment(locale.code, series.path[1] || "");
   const lines = [
     "mindmap",
     `  root(("${esc(series.name)}"))`,
+    `    "${esc(locale.code === "cn" ? `所属大类: ${category}` : `Category: ${category}`)}"`,
+    ...(subcategory ? [`    "${esc(locale.code === "cn" ? `子类: ${subcategory}` : `Subcategory: ${subcategory}`)}"`] : []),
     `    "${locale.code === "cn" ? "\u578b\u53f7\u6570" : "Models"}: ${series.modelCount}"`,
     `    "${locale.code === "cn" ? "\u578b\u53f7\u5217\u8868" : "Models"}"`
   ];
 
-  for (const model of series.models.slice(0, 18)) {
-    lines.push(`      "${esc(model.name)}"`);
+  for (const model of series.models.slice(0, 8)) {
+    lines.push(`      "${esc(trimModelName(model.name))}"`);
   }
-  if (series.models.length > 18) {
+  if (series.models.length > 8) {
     lines.push(
-      `      "${locale.code === "cn" ? `\u5176\u4f59 ${series.models.length - 18} \u4e2a\u578b\u53f7` : `${series.models.length - 18} more models`}"`
+      `      "${locale.code === "cn" ? `\u5176\u4f59 ${series.models.length - 8} \u4e2a\u578b\u53f7` : `${series.models.length - 8} more models`}"`
     );
   }
   if (diff?.differences?.length) {
-    lines.push(`    "${locale.code === "cn" ? "\u4e3b\u8981\u5dee\u5f02\u5b57\u6bb5" : "Top diff fields"}"`);
-    for (const item of diff.differences.slice(0, 10)) {
-      lines.push(`      "${esc(item.field)}"`);
+    lines.push(`    "${locale.code === "cn" ? "\u5bf9\u6bd4\u6982\u8981" : "Comparison Summary"}"`);
+    lines.push(`      "${esc(locale.code === "cn" ? `已对比 ${diff.specCoverage} / ${diff.modelCount} 个型号` : `${diff.specCoverage} / ${diff.modelCount} models compared`)}"`);
+    lines.push(`      "${esc(locale.code === "cn" ? `共发现 ${diff.differences.length} 个差异字段` : `${diff.differences.length} differing fields found`)}"`);
+    lines.push(`    "${locale.code === "cn" ? "\u4e3b\u8981\u5dee\u5f02" : "Key Differences"}"`);
+    for (const item of diff.differences.slice(0, 6)) {
+      lines.push(`      "${esc(formatDifference(locale.code, item))}"`);
     }
+  } else {
+    lines.push(`    "${locale.code === "cn" ? "\u6682\u65e0\u89c4\u683c\u5bf9\u6bd4\u6570\u636e" : "No specification comparison yet"}"`);
   }
   return lines.join("\n");
+}
+
+function humanizeSegment(localeCode, value) {
+  if (!value) return "";
+  if (localeCode === "cn") return value;
+  return String(value)
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+}
+
+function simplifyField(value) {
+  return String(value || "").split(">").map((part) => part.trim()).filter(Boolean).slice(-2).join(" / ");
+}
+
+function trimModelName(value) {
+  return String(value || "")
+    .replace(/\s*-\s*.*?Hikvision.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatDifference(localeCode, item) {
+  const values = Object.values(item.values || {}).filter(Boolean);
+  const unique = [...new Set(values.map((value) => String(value).trim()))].slice(0, 3);
+  const field = simplifyField(item.field);
+  if (!unique.length) return field;
+  return localeCode === "cn"
+    ? `${field}: ${unique.join(" / ")}`
+    : `${field}: ${unique.join(" / ")}`;
 }
 
 function esc(value) {
