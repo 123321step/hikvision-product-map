@@ -49,6 +49,12 @@ jobs:
       - name: Build diff data
         run: npm run build:diffs -- --series-per-locale=8 --models-per-series=25 --max-fetch=250 --concurrency=6
 
+      - name: Rebuild public pages with fresh diffs
+        run: npm run build:public
+
+      - name: Build selector data
+        run: npm run build:selector
+
       - name: Commit updated generated data
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
         run: |

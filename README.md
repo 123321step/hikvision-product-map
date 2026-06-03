@@ -3,9 +3,11 @@
 这个项目会抓取 Hikvision 官网中英文产品页，生成：
 
 - 结构化产品数据 `data/`
-- 同系列型号差异报告 `site/data.json`
+- 同系列型号差异报告 `site/diff-data.json`
+- 在线产品选型数据 `site/selector-data.json`
 - Mermaid 思维导图 `site/mindmaps/`
-- 可切换中英文的静态查看页 `site/index.html`
+- 可切换中英文的静态产品库 `site/index.html`
+- 可生成方案拓扑图的在线选型页 `site/selector.html`
 
 ## 使用
 
@@ -34,6 +36,12 @@ npm run serve
 ```
 
 然后打开 `http://127.0.0.1:4173`
+
+在线选型工具打开：
+
+```text
+http://127.0.0.1:4173/selector.html
+```
 
 或者直接双击运行：
 

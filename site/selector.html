@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hikvision Online Product Selector</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --line: #d8dee6;
+      --text: #17202a;
+      --muted: #607080;
+      --red: #c8282d;
+      --red-soft: #fdecec;
+      --blue: #245b7d;
+      --green: #22735f;
+      --amber: #8a6418;
+      --shadow: 0 12px 28px rgba(26, 38, 52, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f5 100%);
+      font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select { font: inherit; }
+    .topbar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 0 18px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+    .brand strong { font-size: 17px; white-space: nowrap; }
+    .brand span { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .btn, .icon-btn, .seg button {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 8px 10px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: #fff; }
+    .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); }
+    .seg button:last-child { border-right: 0; }
+    .seg button.active { background: var(--red); color: #fff; }
+    .layout {
+      max-width: 1760px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 300px minmax(520px, 1fr) 520px;
+      gap: 14px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+    .panel-head {
+      min-height: 46px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .panel-head h2 { margin: 0; font-size: 15px; }
+    .panel-body { padding: 14px; }
+    .field { display: grid; gap: 6px; margin-bottom: 12px; }
+    .field label { font-size: 12px; color: var(--muted); }
+    input, select {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 8px 9px;
+    }
+    .scenario-list { display: grid; gap: 8px; }
+    .scenario-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      gap: 4px;
+    }
+    .scenario-btn.active { border-color: var(--red); background: var(--red-soft); }
+    .scenario-btn strong { font-size: 14px; }
+    .scenario-btn span { color: var(--muted); font-size: 12px; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .metric-grid .field { margin: 0; }
+    .role-table { display: grid; gap: 8px; }
+    .role-row {
+      display: grid;
+      grid-template-columns: 160px minmax(220px, 1fr) minmax(180px, .8fr) 76px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+    }
+    .role-title { display: grid; gap: 4px; min-width: 0; }
+    .role-title strong { font-size: 13px; }
+    .role-title span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qty-pill {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      height: 30px;
+      min-width: 60px;
+      padding: 0 8px;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .diff-box {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .diff-item {
+      border-left: 3px solid var(--blue);
+      background: #f6f9fb;
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .diff-item strong { color: var(--text); display: block; margin-bottom: 3px; }
+    .topology-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    #topologyRender {
+      min-height: 430px;
+      overflow: auto;
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+      padding: 10px;
+    }
+    #topologyRender svg { min-width: 100%; height: auto; }
+    .bom-wrap { overflow: auto; max-height: 340px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 9px 8px; text-align: left; vertical-align: top; }
+    th { background: #f5f7f9; position: sticky; top: 0; z-index: 1; }
+    td:nth-child(2), th:nth-child(2) { text-align: center; white-space: nowrap; }
+    .status {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+    .stat span { display: block; color: var(--muted); font-size: 12px; }
+    .stat strong { display: block; margin-top: 3px; font-size: 18px; }
+    details { border-top: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 10px 14px; color: var(--muted); font-size: 12px; }
+    pre {
+      margin: 0;
+      padding: 12px 14px 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #26323f;
+      background: #f8fafc;
+      font-size: 12px;
+      max-height: 240px;
+      overflow: auto;
+    }
+    .empty {
+      padding: 20px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    @media (max-width: 1320px) {
+      .layout { grid-template-columns: 280px 1fr; }
+      .output { grid-column: 1 / -1; }
+    }
+    @media (max-width: 820px) {
+      .topbar { height: auto; align-items: flex-start; flex-direction: column; padding: 12px; }
+      .top-actions { width: 100%; flex-wrap: wrap; }
+      .layout { grid-template-columns: 1fr; padding: 10px; }
+      .role-row { grid-template-columns: 1fr; }
+      .metric-grid, .status { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: { primaryColor: "#edf5fb", lineColor: "#607080", fontFamily: "Segoe UI, Microsoft YaHei, sans-serif" } });
+    window.mermaid = mermaid;
+    window.dispatchEvent(new Event("mermaid-ready"));
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <strong>Hikvision Product Selector</strong>
+      <span id="subtitle">在线选型与方案拓扑</span>
+    </div>
+    <div class="top-actions">
+      <a class="btn" href="./index.html" id="atlasLink">产品库</a>
+      <div class="seg" aria-label="language">
+        <button class="active" data-locale="cn">中文</button>
+        <button data-locale="en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel">
+      <div class="panel-head"><h2 id="projectTitle">项目信息</h2></div>
+      <div class="panel-body">
+        <div class="field">
+          <label id="projectNameLabel" for="projectName">项目名称</label>
+          <input id="projectName" value="Hikvision Solution">
+        </div>
+        <div class="field">
+          <label id="siteNameLabel" for="siteName">点位/区域</label>
+          <input id="siteName" value="Main Site">
+        </div>
+        <div class="field">
+          <label id="scenarioLabel">场景模板</label>
+          <div class="scenario-list" id="scenarioList"></div>
+        </div>
+        <div class="field">
+          <label id="metricsLabel">规模参数</label>
+          <div class="metric-grid" id="metricGrid"></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="selectionTitle">产品选型</h2>
+        <button class="btn" id="autoPickBtn">自动推荐</button>
+      </div>
+      <div class="panel-body">
+        <div class="status" id="statusGrid"></div>
+        <div class="role-table" id="roleTable"></div>
+        <div class="diff-box" id="diffBox"></div>
+      </div>
+    </section>
+
+    <section class="panel output">
+      <div class="panel-head">
+        <h2 id="topologyTitle">方案拓扑图</h2>
+        <div class="topology-toolbar">
+          <button class="btn" id="copyBtn">复制图代码</button>
+          <button class="btn" id="svgBtn">导出SVG</button>
+          <button class="btn primary" id="jsonBtn">导出清单</button>
+        </div>
+      </div>
+      <div id="topologyRender"></div>
+      <div class="panel-head"><h2 id="bomTitle">设备清单</h2></div>
+      <div class="bom-wrap">
+        <table>
+          <thead><tr id="bomHead"></tr></thead>
+          <tbody id="bomBody"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary id="sourceSummary">Mermaid 拓扑源码</summary>
+        <pre id="mermaidSource"></pre>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    const i18n = {
+      cn: {
+        subtitle: "在线选型与方案拓扑",
+        atlas: "产品库",
+        project: "项目信息",
+        projectName: "项目名称",
+        siteName: "点位/区域",
+        scenario: "场景模板",
+        metrics: "规模参数",
+        selection: "产品选型",
+        autoPick: "自动推荐",
+        topology: "方案拓扑图",
+        copy: "复制图代码",
+        copied: "已复制",
+        svg: "导出SVG",
+        json: "导出清单",
+        bom: "设备清单",
+        source: "Mermaid 拓扑源码",
+        role: "角色",
+        qty: "数量",
+        category: "类别",
+        series: "产品系列",
+        model: "型号示例",
+        sourceLink: "官网",
+        noData: "这个分类暂时没有候选产品",
+        diffTitle: "已选系列关键差异",
+        compared: "已对比",
+        diffFields: "差异字段",
+        selectedRoles: "已选角色",
+        products: "候选系列",
+        topologyNodes: "拓扑节点",
+        generated: "生成时间",
+        metricLabels: {
+          cameras: "摄像机", ptz: "球机", recorders: "录像机", switches: "交换机", displays: "显示",
+          retentionDays: "存储天数", doors: "门点", readers: "读卡/终端", controllers: "控制器", clients: "客户端",
+          lanes: "车道", barriers: "道闸", entrances: "入口", indoorStations: "室内机", detectors: "探测器",
+          panels: "主机", sirens: "声光/广播"
+        }
+      },
+      en: {
+        subtitle: "Online selection and topology",
+        atlas: "Catalog",
+        project: "Project",
+        projectName: "Project name",
+        siteName: "Site / area",
+        scenario: "Scenario",
+        metrics: "Scale",
+        selection: "Product Selection",
+        autoPick: "Auto pick",
+        topology: "Solution Topology",
+        copy: "Copy diagram",
+        copied: "Copied",
+        svg: "Export SVG",
+        json: "Export BOM",
+        bom: "Bill of Materials",
+        source: "Mermaid source",
+        role: "Role",
+        qty: "Qty",
+        category: "Category",
+        series: "Product series",
+        model: "Model example",
+        sourceLink: "Source",
+        noData: "No candidates for this category yet",
+        diffTitle: "Key differences in selected series",
+        compared: "Compared",
+        diffFields: "Diff fields",
+        selectedRoles: "Selected roles",
+        products: "Candidate series",
+        topologyNodes: "Topology nodes",
+        generated: "Generated",
+        metricLabels: {
+          cameras: "Cameras", ptz: "PTZ", recorders: "Recorders", switches: "Switches", displays: "Displays",
+          retentionDays: "Retention days", doors: "Doors", readers: "Readers", controllers: "Controllers", clients: "Clients",
+          lanes: "Lanes", barriers: "Barriers", entrances: "Entrances", indoorStations: "Indoor stations", detectors: "Detectors",
+          panels: "Panels", sirens: "Sirens"
+        }
+      }
+    };
+
+    const state = {
+      locale: "cn",
+      scenarioId: "video",
+      metrics: {},
+      selectedSeries: {},
+      selectedModels: {},
+      data: null,
+      mermaid: ""
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    Promise.all([
+      fetch("./selector-data.json").then((response) => response.json()),
+      new Promise((resolve) => {
+        if (window.mermaid) resolve();
+        window.addEventListener("mermaid-ready", resolve, { once: true });
+      })
+    ]).then(([data]) => {
+      state.data = data;
+      setScenario(state.scenarioId, true);
+      bindEvents();
+      render();
+    });
+
+    function bindEvents() {
+      document.querySelector(".seg").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-locale]");
+        if (!button) return;
+        state.locale = button.dataset.locale;
+        document.querySelectorAll(".seg button").forEach((item) => item.classList.toggle("active", item === button));
+        render();
+      });
+
+      $("scenarioList").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-scenario]");
+        if (button) setScenario(button.dataset.scenario);
+      });
+
+      $("metricGrid").addEventListener("input", (event) => {
+        const input = event.target.closest("input[data-metric]");
+        if (!input) return;
+        state.metrics[input.dataset.metric] = Math.max(0, Number(input.value || 0));
+        renderOutput();
+      });
+
+      $("roleTable").addEventListener("change", (event) => {
+        const seriesSelect = event.target.closest("select[data-role-series]");
+        const modelSelect = event.target.closest("select[data-role-model]");
+        if (seriesSelect) {
+          state.selectedSeries[seriesSelect.dataset.roleSeries] = seriesSelect.value;
+          delete state.selectedModels[seriesSelect.dataset.roleSeries];
+          render();
+        }
+        if (modelSelect) {
+          state.selectedModels[modelSelect.dataset.roleModel] = modelSelect.value;
+          renderOutput();
+        }
+      });
+
+      $("autoPickBtn").addEventListener("click", () => {
+        autoPick(getScenario());
+        render();
+      });
+      $("copyBtn").addEventListener("click", copyMermaid);
+      $("svgBtn").addEventListener("click", exportSvg);
+      $("jsonBtn").addEventListener("click", exportJson);
+      $("projectName").addEventListener("input", renderOutput);
+      $("siteName").addEventListener("input", renderOutput);
+    }
+
+    function setScenario(id, firstRun = false) {
+      state.scenarioId = id;
+      const scenario = getScenario();
+      state.metrics = { ...scenario.defaults };
+      if (!firstRun) {
+        state.selectedSeries = {};
+        state.selectedModels = {};
+      }
+      autoPick(scenario);
+      render();
+    }
+
+    function getScenario() {
+      return state.data.scenarios.find((scenario) => scenario.id === state.scenarioId) || state.data.scenarios[0];
+    }
+
+    function autoPick(scenario) {
+      for (const role of scenario.roles) {
+        const candidate = getCandidates(role.category)[0];
+        if (candidate) {
+          state.selectedSeries[role.key] = candidate.id;
+          state.selectedModels[role.key] = candidate.models[0]?.name || candidate.name;
+        }
+      }
+    }
+
+    function render() {
+      const t = text();
+      $("subtitle").textContent = t.subtitle;
+      $("atlasLink").textContent = t.atlas;
+      $("projectTitle").textContent = t.project;
+      $("projectNameLabel").textContent = t.projectName;
+      $("siteNameLabel").textContent = t.siteName;
+      $("scenarioLabel").textContent = t.scenario;
+      $("metricsLabel").textContent = t.metrics;
+      $("selectionTitle").textContent = t.selection;
+      $("autoPickBtn").textContent = t.autoPick;
+      $("topologyTitle").textContent = t.topology;
+      $("copyBtn").textContent = t.copy;
+      $("svgBtn").textContent = t.svg;
+      $("jsonBtn").textContent = t.json;
+      $("bomTitle").textContent = t.bom;
+      $("sourceSummary").textContent = t.source;
+
+      renderScenarios();
+      renderMetrics();
+      renderRoles();
+      renderOutput();
+    }
+
+    function renderScenarios() {
+      $("scenarioList").innerHTML = state.data.scenarios.map((scenario) => {
+        const active = scenario.id === state.scenarioId ? " active" : "";
+        const roles = scenario.roles.map((role) => role.labels[state.locale]).slice(0, 3).join(" / ");
+        return `<button class="scenario-btn${active}" data-scenario="${escapeHtml(scenario.id)}"><strong>${escapeHtml(scenario.labels[state.locale])}</strong><span>${escapeHtml(roles)}</span></button>`;
+      }).join("");
+    }
+
+    function renderMetrics() {
+      const t = text();
+      const scenario = getScenario();
+      $("metricGrid").innerHTML = Object.keys(scenario.defaults).map((key) => `
+        <div class="field">
+          <label for="metric-${escapeHtml(key)}">${escapeHtml(t.metricLabels[key] || key)}</label>
+          <input id="metric-${escapeHtml(key)}" data-metric="${escapeHtml(key)}" type="number" min="0" step="1" value="${Number(state.metrics[key] || 0)}">
+        </div>
+      `).join("");
+    }
+
+    function renderRoles() {
+      const scenario = getScenario();
+      $("roleTable").innerHTML = scenario.roles.map((role) => roleRow(role)).join("");
+      renderDiffs();
+      renderStatus();
+    }
+
+    function roleRow(role) {
+      const t = text();
+      const candidates = getCandidates(role.category);
+      const selected = findSelected(role);
+      const selectedId = selected?.id || "";
+      const models = selected?.models?.length ? selected.models : [{ name: selected?.name || t.noData, url: selected?.url || "" }];
+      const selectedModel = state.selectedModels[role.key] || models[0]?.name || "";
+      const categoryLabel = state.data.categoryLabels[role.category]?.[state.locale] || role.category;
+      const qty = quantityForRole(role);
+      if (!candidates.length) {
+        return `<div class="role-row"><div class="role-title"><strong>${escapeHtml(role.labels[state.locale])}</strong><span>${escapeHtml(categoryLabel)}</span></div><div class="empty">${escapeHtml(t.noData)}</div><div></div><div class="qty-pill">${qty}</div></div>`;
+      }
+      return `
+        <div class="role-row">
+          <div class="role-title">
+            <strong>${escapeHtml(role.labels[state.locale])}</strong>
+            <span>${escapeHtml(categoryLabel)}</span>
+          </div>
+          <select data-role-series="${escapeHtml(role.key)}" aria-label="${escapeHtml(t.series)}">
+            ${candidates.map((item) => `<option value="${escapeHtml(item.id)}"${item.id === selectedId ? " selected" : ""}>${escapeHtml(item.name)} · ${item.modelCount} · diff ${item.diffFields}</option>`).join("")}
+          </select>
+          <select data-role-model="${escapeHtml(role.key)}" aria-label="${escapeHtml(t.model)}">
+            ${models.map((model) => `<option value="${escapeHtml(model.name)}"${model.name === selectedModel ? " selected" : ""}>${escapeHtml(model.name)}</option>`).join("")}
+          </select>
+          <div class="qty-pill">${escapeHtml(String(qty))}</div>
+        </div>
+      `;
+    }
+
+    function renderDiffs() {
+      const t = text();
+      const scenario = getScenario();
+      const items = [];
+      for (const role of scenario.roles) {
+        const selected = findSelected(role);
+        if (!selected?.differenceSummary?.length) continue;
+        for (const diff of selected.differenceSummary.slice(0, 2)) {
+          items.push(`<div class="diff-item"><strong>${escapeHtml(role.labels[state.locale])} · ${escapeHtml(diff.field)}</strong>${escapeHtml(diff.values.join(" / "))}</div>`);
+        }
+      }
+      $("diffBox").innerHTML = items.length ? `<h3 style="margin:2px 0 0;font-size:14px;">${escapeHtml(t.diffTitle)}</h3>${items.join("")}` : "";
+    }
+
+    function renderStatus() {
+      const t = text();
+      const scenario = getScenario();
+      const roleCount = scenario.roles.filter((role) => findSelected(role)).length;
+      const productCount = scenario.roles.reduce((sum, role) => sum + getCandidates(role.category).length, 0);
+      $("statusGrid").innerHTML = [
+        [t.selectedRoles, roleCount],
+        [t.products, productCount],
+        [t.topologyNodes, scenario.topology.nodes.length],
+        [t.generated, new Date(state.data.generatedAt).toLocaleDateString(state.locale === "cn" ? "zh-CN" : "en-US")]
+      ].map(([label, value]) => `<div class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`).join("");
+    }
+
+    function renderOutput() {
+      const mermaid = buildMermaid();
+      state.mermaid = mermaid;
+      $("mermaidSource").textContent = mermaid;
+      renderTopology(mermaid);
+      renderBom();
+    }
+
+    async function renderTopology(source) {
+      if (!window.mermaid) return;
+      try {
+        const result = await window.mermaid.render(`solution-${Date.now()}`, source);
+        $("topologyRender").innerHTML = result.svg;
+      } catch (error) {
+        $("topologyRender").innerHTML = `<pre>${escapeHtml(source)}\n\n${escapeHtml(error.message)}</pre>`;
+      }
+    }
+
+    function renderBom() {
+      const t = text();
+      const rows = buildBom();
+      $("bomHead").innerHTML = [t.role, t.qty, t.category, t.series, t.model, t.sourceLink].map((head) => `<th>${escapeHtml(head)}</th>`).join("");
+      $("bomBody").innerHTML = rows.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.role)}</td>
+          <td>${escapeHtml(String(row.qty))}</td>
+          <td>${escapeHtml(row.category)}</td>
+          <td>${escapeHtml(row.series)}</td>
+          <td>${escapeHtml(row.model)}</td>
+          <td>${row.url ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noreferrer">open</a>` : ""}</td>
+        </tr>
+      `).join("");
+    }
+
+    function buildMermaid() {
+      const scenario = getScenario();
+      const lines = [
+        "flowchart LR",
+        `  project["${mermaidText($("projectName").value || "Hikvision Solution")}\\n${mermaidText($("siteName").value || "")}"]`
+      ];
+      for (const node of scenario.topology.nodes) {
+        if (node.optionalMetric && Number(state.metrics[node.metric] || 0) <= 0) continue;
+        lines.push(`  ${node.id}["${mermaidText(nodeLabel(node))}"]`);
+      }
+      const firstNode = scenario.topology.nodes.find((node) => !(node.optionalMetric && Number(state.metrics[node.metric] || 0) <= 0));
+      if (firstNode) lines.push(`  project --> ${firstNode.id}`);
+      for (const [from, to] of scenario.topology.edges) {
+        const fromNode = scenario.topology.nodes.find((node) => node.id === from);
+        const toNode = scenario.topology.nodes.find((node) => node.id === to);
+        if (!fromNode || !toNode) continue;
+        if (fromNode.optionalMetric && Number(state.metrics[fromNode.metric] || 0) <= 0) continue;
+        if (toNode.optionalMetric && Number(state.metrics[toNode.metric] || 0) <= 0) continue;
+        lines.push(`  ${from} --> ${to}`);
+      }
+      lines.push("  classDef default fill:#f7fafc,stroke:#8b98a7,color:#17202a");
+      lines.push("  classDef active fill:#fdecec,stroke:#c8282d,color:#17202a");
+      lines.push("  class project,platform,recorder active");
+      return lines.join("\n");
+    }
+
+    function nodeLabel(node) {
+      const label = node.labels[state.locale] || node.id;
+      const selected = node.role ? findSelectedByRoleKey(node.role) : null;
+      const model = node.role ? state.selectedModels[node.role] : "";
+      const metric = node.metric ? Number(state.metrics[node.metric] || 0) : null;
+      const suffix = node.metricSuffix?.[state.locale] || "";
+      const lines = [label];
+      if (metric !== null) lines.push(`${metric}${suffix}`);
+      if (selected) lines.push(selected.name);
+      if (model && model !== selected?.name) lines.push(model);
+      return lines.filter(Boolean).slice(0, 4).join("\\n");
+    }
+
+    function buildBom() {
+      const scenario = getScenario();
+      return scenario.roles.map((role) => {
+        const selected = findSelected(role);
+        return {
+          role: role.labels[state.locale],
+          qty: quantityForRole(role),
+          category: state.data.categoryLabels[role.category]?.[state.locale] || role.category,
+          series: selected?.name || "",
+          model: state.selectedModels[role.key] || selected?.models?.[0]?.name || "",
+          url: selected?.url || ""
+        };
+      }).filter((row) => row.series);
+    }
+
+    function getCandidates(category) {
+      return state.data?.families?.[state.locale]?.[category] || [];
+    }
+
+    function findSelected(role) {
+      const candidates = getCandidates(role.category);
+      return candidates.find((item) => item.id === state.selectedSeries[role.key]) || candidates[0] || null;
+    }
+
+    function findSelectedByRoleKey(roleKey) {
+      const role = getScenario().roles.find((item) => item.key === roleKey);
+      return role ? findSelected(role) : null;
+    }
+
+    function quantityForRole(role) {
+      return role.qty ? Number(state.metrics[role.qty] || 0) : 1;
+    }
+
+    function text() {
+      return i18n[state.locale] || i18n.cn;
+    }
+
+    async function copyMermaid() {
+      await navigator.clipboard.writeText(state.mermaid);
+      const t = text();
+      const button = $("copyBtn");
+      const old = button.textContent;
+      button.textContent = t.copied;
+      setTimeout(() => { button.textContent = old; }, 1200);
+    }
+
+    function exportSvg() {
+      const svg = $("topologyRender").querySelector("svg");
+      if (!svg) return;
+      download(`${fileBase()}-topology.svg`, new XMLSerializer().serializeToString(svg), "image/svg+xml");
+    }
+
+    function exportJson() {
+      const payload = {
+        project: $("projectName").value,
+        site: $("siteName").value,
+        locale: state.locale,
+        scenario: getScenario().labels[state.locale],
+        metrics: state.metrics,
+        bom: buildBom(),
+        mermaid: state.mermaid,
+        generatedAt: new Date().toISOString()
+      };
+      download(`${fileBase()}-bom.json`, JSON.stringify(payload, null, 2), "application/json");
+    }
+
+    function fileBase() {
+      return ($("projectName").value || "hikvision-solution").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "hikvision-solution";
+    }
+
+    function download(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function mermaidText(value) {
+      return String(value || "").replace(/"/g, "'").replace(/[<>]/g, "").replace(/\r?\n/g, " ").slice(0, 180);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+    }
+  </script>
+</body>
+</html>
