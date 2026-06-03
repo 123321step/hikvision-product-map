@@ -3,396 +3,865 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hikvision Online Product Selector</title>
+  <title>HiTools Style Product Selector</title>
   <style>
     :root {
-      --bg: #f4f6f8;
-      --panel: #ffffff;
-      --panel-soft: #f8fafc;
-      --line: #d8dee6;
-      --text: #17202a;
-      --muted: #607080;
-      --red: #c8282d;
-      --red-soft: #fdecec;
-      --blue: #245b7d;
-      --green: #22735f;
-      --amber: #8a6418;
-      --shadow: 0 12px 28px rgba(26, 38, 52, .08);
+      --blue: #2867f0;
+      --blue-dark: #1e52cf;
+      --line: #d8d8d8;
+      --line-soft: #ececec;
+      --text: #111;
+      --muted: #8a8a8a;
+      --panel: #fff;
+      --bg: #f5f5f5;
+      --rail: #f2f3f5;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
       color: var(--text);
-      background: linear-gradient(180deg, #f8fafc 0%, #eef2f5 100%);
-      font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: var(--bg);
+      font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+      font-size: 14px;
     }
-    a { color: var(--blue); text-decoration: none; }
-    a:hover { text-decoration: underline; }
     button, input, select { font: inherit; }
-    .topbar {
-      height: 58px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 0 18px;
-      background: #ffffff;
-      border-bottom: 1px solid var(--line);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
-    .brand strong { font-size: 17px; white-space: nowrap; }
-    .brand span { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .top-actions { display: flex; align-items: center; gap: 8px; }
-    .btn, .icon-btn, .seg button {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #fff;
-      color: var(--text);
-      padding: 8px 10px;
-      cursor: pointer;
-      line-height: 1;
-    }
-    .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
-    .btn:disabled { opacity: .55; cursor: not-allowed; }
-    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: #fff; }
-    .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); }
-    .seg button:last-child { border-right: 0; }
-    .seg button.active { background: var(--red); color: #fff; }
-    .layout {
-      max-width: 1760px;
-      margin: 0 auto;
-      padding: 14px;
+    button { cursor: pointer; }
+    a { color: var(--blue); text-decoration: none; }
+    .app {
+      height: 100vh;
       display: grid;
-      grid-template-columns: 300px minmax(520px, 1fr) 520px;
-      gap: 14px;
+      grid-template-columns: 48px 1fr;
+      background: #fff;
     }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      min-width: 0;
-    }
-    .panel-head {
-      min-height: 46px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
+    .rail {
+      background: var(--rail);
+      border-right: 1px solid #ddd;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      padding: 10px 0;
       gap: 12px;
     }
-    .panel-head h2 { margin: 0; font-size: 15px; }
-    .panel-body { padding: 14px; }
-    .field { display: grid; gap: 6px; margin-bottom: 12px; }
-    .field label { font-size: 12px; color: var(--muted); }
-    input, select {
-      width: 100%;
-      min-height: 36px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #fff;
-      color: var(--text);
-      padding: 8px 9px;
-    }
-    .scenario-list { display: grid; gap: 8px; }
-    .scenario-btn {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 7px;
-      background: #fff;
-      padding: 10px;
-      text-align: left;
-      cursor: pointer;
+    .logo {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
       display: grid;
-      gap: 4px;
+      place-items: center;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 8px;
     }
-    .scenario-btn.active { border-color: var(--red); background: var(--red-soft); }
-    .scenario-btn strong { font-size: 14px; }
-    .scenario-btn span { color: var(--muted); font-size: 12px; }
-    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .metric-grid .field { margin: 0; }
-    .role-table { display: grid; gap: 8px; }
-    .role-row {
+    .rail-btn {
+      width: 36px;
+      height: 36px;
+      border: 0;
+      background: transparent;
+      color: #555;
       display: grid;
-      grid-template-columns: 160px minmax(220px, 1fr) minmax(180px, .8fr) 76px;
-      gap: 10px;
-      align-items: center;
-      padding: 10px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-soft);
+      place-items: center;
+      position: relative;
     }
-    .role-title { display: grid; gap: 4px; min-width: 0; }
-    .role-title strong { font-size: 13px; }
-    .role-title span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .qty-pill {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      height: 30px;
-      min-width: 60px;
-      padding: 0 8px;
-      border-radius: 6px;
+    .rail-btn.active { background: #fff; color: var(--blue); }
+    .rail-btn.active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 7px;
+      bottom: 7px;
+      width: 3px;
+      background: var(--blue);
+    }
+    .main-shell {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 41px 52px 1fr;
+      height: 100vh;
+    }
+    .topbar {
       background: #fff;
-      border: 1px solid var(--line);
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .diff-box {
-      margin-top: 12px;
-      display: grid;
-      gap: 8px;
-    }
-    .diff-item {
-      border-left: 3px solid var(--blue);
-      background: #f6f9fb;
-      padding: 8px 10px;
-      border-radius: 5px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .diff-item strong { color: var(--text); display: block; margin-bottom: 3px; }
-    .topology-toolbar {
+      border-bottom: 1px solid var(--line-soft);
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
+      padding: 0 24px 0 12px;
+    }
+    .save-btn {
+      height: 32px;
+      min-width: 216px;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 14px;
+    }
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: #111;
+    }
+    .lang-toggle {
+      border: 0;
+      background: transparent;
+      color: #111;
+      padding: 0;
+      height: 32px;
+    }
+    .login {
+      min-width: 84px;
+      height: 32px;
+      border: 0;
+      border-radius: 3px;
+      background: var(--blue);
+      color: #fff;
+    }
+    .searchbar {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(360px, 544px) 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 8px 24px 8px 12px;
+    }
+    .searchbox {
+      height: 34px;
+      display: grid;
+      grid-template-columns: 1fr 36px;
+      border: 1px solid var(--blue);
+      background: #fff;
+    }
+    .searchbox input {
+      border: 0;
+      outline: 0;
+      padding: 0 12px;
+      color: #444;
+    }
+    .searchbox button {
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      font-size: 18px;
+    }
+    .selected-top {
+      height: 36px;
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      min-width: 222px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 304px minmax(0, 1fr);
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .directory {
+      min-height: 0;
+      border-right: 1px solid var(--line);
+      padding: 12px 12px 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 12px;
+      background: #fff;
+    }
+    .dir-search, .brand-select {
+      height: 32px;
+      border: 1px solid #bfbfbf;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px;
+      color: #555;
+      background: #fff;
+    }
+    .dir-search input {
+      border: 0;
+      outline: 0;
+      min-width: 0;
+      flex: 1;
+      height: 100%;
+    }
+    .brand-select {
+      justify-content: space-between;
+      font-size: 14px;
+    }
+    .category-list {
+      min-height: 0;
+      overflow: auto;
+      padding-bottom: 12px;
+    }
+    .category-row {
+      height: 32px;
+      display: grid;
+      grid-template-columns: 16px 18px 1fr auto;
+      align-items: center;
+      gap: 7px;
+      color: #111;
+      white-space: nowrap;
+      cursor: pointer;
+      padding-right: 6px;
+    }
+    .category-row:hover, .category-row.active { background: #f4f7ff; color: var(--blue); }
+    .twisty { color: #777; font-size: 18px; line-height: 1; }
+    .box {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #bcbcbc;
+      background: #f7f7f7;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: var(--blue);
+    }
+    .category-row.active .box::after { content: "✓"; }
+    .category-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cat-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .clear-all {
+      height: 42px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      font-size: 13px;
+    }
+    .catalog {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 46px 1fr;
+      background: #fff;
+    }
+    .catalog-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .catalog-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #333;
+    }
+    .checkbox-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #333;
+    }
+    .small-box {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #bbb;
+      display: inline-block;
+      background: #fff;
+    }
+    .sort-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sort-select {
+      height: 32px;
+      min-width: 156px;
+      border: 1px solid #bbb;
+      padding: 0 8px;
+      background: #fff;
+    }
+    .view-btn {
+      width: 34px;
+      height: 32px;
+      border: 1px solid #bbb;
+      background: #fff;
+      color: #555;
+    }
+    .view-btn.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: #eef4ff;
+    }
+    .product-grid {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 24px 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+      gap: 16px;
+      align-content: start;
+      background: #fff;
+    }
+    .product-card {
+      height: 180px;
+      border: 1px solid #ddd;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 88px 1fr;
+    }
+    .product-card:hover {
+      border-color: #c8c8c8;
+      box-shadow: 0 4px 10px rgba(0,0,0,.08);
+    }
+    .result-note {
+      grid-column: 1 / -1;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      border: 1px dashed #d7d7d7;
+      background: #fbfbfb;
+    }
+    .tag-row {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      z-index: 2;
+    }
+    .mini-tag {
+      height: 16px;
+      min-width: 18px;
+      border: 1px solid #777;
+      color: #444;
+      font-size: 9px;
+      line-height: 14px;
+      text-align: center;
+      background: #fff;
+    }
+    .star { font-size: 20px; color: #666; line-height: 1; }
+    .visual {
+      display: grid;
+      place-items: center;
+      padding-top: 20px;
+    }
+    .device {
+      position: relative;
+      width: 118px;
+      height: 60px;
+      transform: scale(.86);
+    }
+    .device.camera::before {
+      content: "";
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      width: 72px;
+      height: 30px;
+      border-radius: 7px 18px 18px 7px;
+      background: linear-gradient(90deg, #30343a 0 26%, #eceef0 27% 100%);
+      box-shadow: 0 4px 8px rgba(0,0,0,.16);
+    }
+    .device.camera::after {
+      content: "";
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      width: 42px;
+      height: 38px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 42% 48%, #171d24 0 6px, #cbd0d5 7px 17px, #f7f8f9 18px);
+      box-shadow: 0 4px 8px rgba(0,0,0,.14);
+    }
+    .device.ptz::before {
+      content: "";
+      position: absolute;
+      left: 30px;
+      top: 6px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 45% 48%, #1d2228 0 8px, #d8dce0 9px 19px, #f4f5f6 20px);
+      box-shadow: 0 2px 7px rgba(0,0,0,.16);
+    }
+    .device.boxy::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 11px;
+      width: 76px;
+      height: 34px;
+      border-radius: 4px;
+      background: linear-gradient(180deg, #f6f7f8, #ccd1d6);
+      border: 1px solid #aeb4ba;
+      box-shadow: inset 0 -8px 12px rgba(0,0,0,.08);
+    }
+    .device.panel::before {
+      content: "";
+      position: absolute;
+      left: 28px;
+      top: 5px;
+      width: 46px;
+      height: 46px;
+      border-radius: 4px;
+      background: linear-gradient(180deg, #eef3f7, #cfd7df);
+      border: 1px solid #aeb8c0;
+    }
+    .device.panel::after {
+      content: "";
+      position: absolute;
+      left: 40px;
+      top: 17px;
+      width: 22px;
+      height: 15px;
+      background: #29313a;
+      border-radius: 2px;
+    }
+    .card-info {
+      padding: 2px 12px 10px;
+      min-width: 0;
+    }
+    .product-title {
+      font-weight: 700;
+      line-height: 18px;
+      height: 38px;
+      overflow: hidden;
+      color: #0a0a0a;
+      word-break: break-word;
+    }
+    .product-desc {
+      margin-top: 5px;
+      color: #9b9b9b;
+      line-height: 18px;
+      height: 36px;
+      overflow: hidden;
+    }
+    .new-tag {
+      display: inline-block;
+      color: #f04d4f;
+      border: 1px solid #ffd2d2;
+      background: #fff6f6;
+      padding: 0 4px;
+      margin-left: 4px;
+      font-size: 11px;
+    }
+    .hover-actions {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 40px;
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(0,0,0,.78);
+    }
+    .product-card:hover .hover-actions { display: grid; }
+    .hover-actions button {
+      border: 0;
+      color: #fff;
+      background: transparent;
+      border-right: 1px solid rgba(255,255,255,.25);
+    }
+    .hover-actions button:last-child { border-right: 0; }
+    .selection {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(430px, calc(100vw - 64px));
+      min-width: 0;
+      min-height: 0;
+      border-left: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: 42px auto 1fr auto;
+      background: #fff;
+      z-index: 8;
+      box-shadow: -8px 0 22px rgba(0,0,0,.12);
+      transform: translateX(102%);
+      transition: transform .18s ease;
+    }
+    .workspace.drawer-open .selection {
+      transform: translateX(0);
+    }
+    .drawer-close {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      background: transparent;
+      color: #fff;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .selected-head {
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+    }
+    .selected-head strong { font-weight: 500; }
+    .scenario-panel {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+    }
+    .scenario-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .scenario-row select, .scenario-row button {
+      height: 32px;
+      border: 1px solid #bbb;
+      background: #fff;
+    }
+    .scenario-row button {
+      padding: 0 10px;
+      color: #fff;
+      border-color: var(--blue);
+      background: var(--blue);
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .metric input {
+      width: 100%;
+      height: 28px;
+      border: 1px solid #cfcfcf;
+      padding: 0 6px;
+    }
+    .metric label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .selected-list {
+      min-height: 0;
+      overflow: auto;
+      padding: 10px 12px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      background: #fbfbfb;
+    }
+    .selected-item {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 9px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .selected-item strong {
+      display: block;
+      line-height: 17px;
+      font-size: 12px;
+      max-height: 34px;
+      overflow: hidden;
+    }
+    .selected-item span {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 12px;
+    }
+    .qty-controls {
+      display: grid;
+      grid-template-columns: 24px 38px 24px;
+      align-items: center;
+      gap: 2px;
+    }
+    .qty-controls button {
+      width: 24px;
+      height: 24px;
+      border: 1px solid #ccc;
+      background: #fff;
+    }
+    .qty-controls input {
+      width: 38px;
+      height: 24px;
+      text-align: center;
+      border: 1px solid #ccc;
+      padding: 0;
+    }
+    .selected-actions {
+      border-top: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 360px;
+    }
+    .tool-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--line);
+    }
+    .tool-tabs button {
+      height: 34px;
+      border: 0;
+      background: #fff;
+      border-right: 1px solid var(--line);
+    }
+    .tool-tabs button.active {
+      color: var(--blue);
+      border-bottom: 2px solid var(--blue);
+    }
+    .output-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 1fr auto;
     }
     #topologyRender {
-      min-height: 430px;
+      min-height: 210px;
       overflow: auto;
-      border-bottom: 1px solid var(--line);
-      background: #ffffff;
-      padding: 10px;
-    }
-    #topologyRender svg { min-width: 100%; height: auto; }
-    .bom-wrap { overflow: auto; max-height: 340px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { border-bottom: 1px solid var(--line); padding: 9px 8px; text-align: left; vertical-align: top; }
-    th { background: #f5f7f9; position: sticky; top: 0; z-index: 1; }
-    td:nth-child(2), th:nth-child(2) { text-align: center; white-space: nowrap; }
-    .status {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .stat {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
       background: #fff;
+      padding: 8px;
     }
-    .stat span { display: block; color: var(--muted); font-size: 12px; }
-    .stat strong { display: block; margin-top: 3px; font-size: 18px; }
-    details { border-top: 1px solid var(--line); }
-    summary { cursor: pointer; padding: 10px 14px; color: var(--muted); font-size: 12px; }
-    pre {
-      margin: 0;
-      padding: 12px 14px 16px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: #26323f;
-      background: #f8fafc;
-      font-size: 12px;
-      max-height: 240px;
+    #topologyRender svg {
+      min-width: 100%;
+      height: auto;
+    }
+    .bom {
+      max-height: 170px;
       overflow: auto;
+      border-top: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 7px 6px;
+      border-bottom: 1px solid #ececec;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f7f7f7; position: sticky; top: 0; }
+    .export-row {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      border-top: 1px solid var(--line);
+    }
+    .export-row button {
+      flex: 1;
+      height: 30px;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      background: #fff;
     }
     .empty {
-      padding: 20px;
+      height: 100%;
+      min-height: 120px;
+      display: grid;
+      place-items: center;
       color: var(--muted);
       text-align: center;
-      border: 1px dashed var(--line);
-      border-radius: 8px;
-      background: #fff;
+      padding: 20px;
     }
-    @media (max-width: 1320px) {
-      .layout { grid-template-columns: 280px 1fr; }
-      .output { grid-column: 1 / -1; }
+    @media (max-width: 1180px) {
+      body { overflow: auto; }
+      .app { min-height: 100vh; height: auto; }
+      .main-shell { height: auto; min-height: 100vh; }
+      .workspace { grid-template-columns: 280px 1fr; }
+      .selection { position: fixed; top: 0; right: 0; bottom: 0; min-height: 560px; border-left: 1px solid var(--line); border-top: 0; }
     }
-    @media (max-width: 820px) {
-      .topbar { height: auto; align-items: flex-start; flex-direction: column; padding: 12px; }
-      .top-actions { width: 100%; flex-wrap: wrap; }
-      .layout { grid-template-columns: 1fr; padding: 10px; }
-      .role-row { grid-template-columns: 1fr; }
-      .metric-grid, .status { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 760px) {
+      .app { grid-template-columns: 1fr; }
+      .rail { display: none; }
+      .searchbar { grid-template-columns: 1fr; }
+      .workspace { grid-template-columns: 1fr; }
+      .directory { border-right: 0; border-bottom: 1px solid var(--line); max-height: 380px; }
+      .topbar { padding-right: 10px; }
+      .save-btn { min-width: 0; }
+      .top-right { gap: 8px; }
+      .product-grid { grid-template-columns: 1fr; }
     }
   </style>
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: { primaryColor: "#edf5fb", lineColor: "#607080", fontFamily: "Segoe UI, Microsoft YaHei, sans-serif" } });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: { primaryColor: "#f2f6ff", primaryBorderColor: "#2867f0", lineColor: "#777", fontFamily: "Arial, Microsoft YaHei, sans-serif" } });
     window.mermaid = mermaid;
     window.dispatchEvent(new Event("mermaid-ready"));
   </script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <strong>Hikvision Product Selector</strong>
-      <span id="subtitle">在线选型与方案拓扑</span>
-    </div>
-    <div class="top-actions">
-      <a class="btn" href="./index.html" id="atlasLink">产品库</a>
-      <div class="seg" aria-label="language">
-        <button class="active" data-locale="cn">中文</button>
-        <button data-locale="en">EN</button>
-      </div>
-    </div>
-  </header>
+  <div class="app">
+    <nav class="rail">
+      <div class="logo">D</div>
+      <button class="rail-btn" title="Project">⌘</button>
+      <button class="rail-btn active" title="Products">□</button>
+      <button class="rail-btn" title="Topology">▦</button>
+      <button class="rail-btn" title="Report">▤</button>
+      <button class="rail-btn" title="Map">⌖</button>
+      <div style="flex:1"></div>
+      <button class="rail-btn" title="Menu">☰</button>
+    </nav>
 
-  <main class="layout">
-    <aside class="panel">
-      <div class="panel-head"><h2 id="projectTitle">项目信息</h2></div>
-      <div class="panel-body">
-        <div class="field">
-          <label id="projectNameLabel" for="projectName">项目名称</label>
-          <input id="projectName" value="Hikvision Solution">
+    <section class="main-shell">
+      <header class="topbar">
+        <button class="save-btn" id="saveProjectBtn">▣ Save As a New Project</button>
+        <div class="top-right">
+          <button class="lang-toggle" id="languageLabel">Global-English</button>
+          <button class="rail-btn" title="Settings">⚙</button>
+          <button class="login">Log In</button>
         </div>
-        <div class="field">
-          <label id="siteNameLabel" for="siteName">点位/区域</label>
-          <input id="siteName" value="Main Site">
-        </div>
-        <div class="field">
-          <label id="scenarioLabel">场景模板</label>
-          <div class="scenario-list" id="scenarioList"></div>
-        </div>
-        <div class="field">
-          <label id="metricsLabel">规模参数</label>
-          <div class="metric-grid" id="metricGrid"></div>
-        </div>
-      </div>
-    </aside>
+      </header>
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2 id="selectionTitle">产品选型</h2>
-        <button class="btn" id="autoPickBtn">自动推荐</button>
+      <div class="searchbar">
+        <div class="searchbox">
+          <input id="keyword" placeholder="Enter keywords. Multiple keywords should be separated by space.">
+          <button id="searchBtn">⌕</button>
+        </div>
+        <div></div>
+        <button class="selected-top" id="selectedTop">🛒 Selected Products (0)</button>
       </div>
-      <div class="panel-body">
-        <div class="status" id="statusGrid"></div>
-        <div class="role-table" id="roleTable"></div>
-        <div class="diff-box" id="diffBox"></div>
+
+      <div class="workspace" id="workspace">
+        <aside class="directory">
+          <div class="dir-search">⌕ <input id="directorySearch" placeholder="Search Directory"></div>
+          <div class="brand-select">HIKVISION <span>⌄</span></div>
+          <div class="category-list" id="categoryList"></div>
+          <div class="clear-all" id="clearAll">Clear All</div>
+        </aside>
+
+        <main class="catalog">
+          <div class="catalog-toolbar">
+            <div class="catalog-meta">
+              <strong id="totalLabel">Total: 0</strong>
+              <label class="checkbox-line"><span class="small-box"></span><span id="newOnlyText">Display New Products Only</span></label>
+            </div>
+            <div class="sort-area">
+              <select class="sort-select" id="sortSelect">
+                <option value="default">Default</option>
+                <option value="models">Model Count</option>
+                <option value="diffs">Diff Coverage</option>
+                <option value="name">Name</option>
+              </select>
+              <button class="view-btn active" title="Grid">▦</button>
+              <button class="view-btn" title="List">☰</button>
+            </div>
+          </div>
+          <div class="product-grid" id="productGrid"></div>
+        </main>
+
+        <aside class="selection" id="selectionDrawer">
+          <div class="selected-head"><strong id="selectedHead">Selected Products (0)</strong><button class="drawer-close" id="drawerClose" title="Close">×</button></div>
+          <div class="scenario-panel">
+            <div class="scenario-row">
+              <select id="scenarioSelect"></select>
+              <button id="applyScenario">Generate</button>
+            </div>
+            <div class="metric-row" id="metricRow"></div>
+          </div>
+          <div class="selected-list" id="selectedList"></div>
+          <div class="selected-actions">
+            <div class="tool-tabs">
+              <button class="active" data-tool="topology">Topology</button>
+              <button data-tool="bom">BOM</button>
+              <button data-tool="source">Source</button>
+            </div>
+            <div class="output-body">
+              <div id="topologyRender"></div>
+              <div class="bom" id="bomWrap"></div>
+            </div>
+            <div class="export-row">
+              <button id="copyBtn">Copy Diagram</button>
+              <button id="svgBtn">Export SVG</button>
+              <button id="jsonBtn">Export BOM</button>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
-
-    <section class="panel output">
-      <div class="panel-head">
-        <h2 id="topologyTitle">方案拓扑图</h2>
-        <div class="topology-toolbar">
-          <button class="btn" id="copyBtn">复制图代码</button>
-          <button class="btn" id="svgBtn">导出SVG</button>
-          <button class="btn primary" id="jsonBtn">导出清单</button>
-        </div>
-      </div>
-      <div id="topologyRender"></div>
-      <div class="panel-head"><h2 id="bomTitle">设备清单</h2></div>
-      <div class="bom-wrap">
-        <table>
-          <thead><tr id="bomHead"></tr></thead>
-          <tbody id="bomBody"></tbody>
-        </table>
-      </div>
-      <details>
-        <summary id="sourceSummary">Mermaid 拓扑源码</summary>
-        <pre id="mermaidSource"></pre>
-      </details>
-    </section>
-  </main>
+  </div>
 
   <script>
-    const i18n = {
-      cn: {
-        subtitle: "在线选型与方案拓扑",
-        atlas: "产品库",
-        project: "项目信息",
-        projectName: "项目名称",
-        siteName: "点位/区域",
-        scenario: "场景模板",
-        metrics: "规模参数",
-        selection: "产品选型",
-        autoPick: "自动推荐",
-        topology: "方案拓扑图",
-        copy: "复制图代码",
-        copied: "已复制",
-        svg: "导出SVG",
-        json: "导出清单",
-        bom: "设备清单",
-        source: "Mermaid 拓扑源码",
-        role: "角色",
-        qty: "数量",
-        category: "类别",
-        series: "产品系列",
-        model: "型号示例",
-        sourceLink: "官网",
-        noData: "这个分类暂时没有候选产品",
-        diffTitle: "已选系列关键差异",
-        compared: "已对比",
-        diffFields: "差异字段",
-        selectedRoles: "已选角色",
-        products: "候选系列",
-        topologyNodes: "拓扑节点",
-        generated: "生成时间",
-        metricLabels: {
-          cameras: "摄像机", ptz: "球机", recorders: "录像机", switches: "交换机", displays: "显示",
-          retentionDays: "存储天数", doors: "门点", readers: "读卡/终端", controllers: "控制器", clients: "客户端",
-          lanes: "车道", barriers: "道闸", entrances: "入口", indoorStations: "室内机", detectors: "探测器",
-          panels: "主机", sirens: "声光/广播"
-        }
-      },
-      en: {
-        subtitle: "Online selection and topology",
-        atlas: "Catalog",
-        project: "Project",
-        projectName: "Project name",
-        siteName: "Site / area",
-        scenario: "Scenario",
-        metrics: "Scale",
-        selection: "Product Selection",
-        autoPick: "Auto pick",
-        topology: "Solution Topology",
-        copy: "Copy diagram",
-        copied: "Copied",
-        svg: "Export SVG",
-        json: "Export BOM",
-        bom: "Bill of Materials",
-        source: "Mermaid source",
-        role: "Role",
-        qty: "Qty",
-        category: "Category",
-        series: "Product series",
-        model: "Model example",
-        sourceLink: "Source",
-        noData: "No candidates for this category yet",
-        diffTitle: "Key differences in selected series",
-        compared: "Compared",
-        diffFields: "Diff fields",
-        selectedRoles: "Selected roles",
-        products: "Candidate series",
-        topologyNodes: "Topology nodes",
-        generated: "Generated",
-        metricLabels: {
-          cameras: "Cameras", ptz: "PTZ", recorders: "Recorders", switches: "Switches", displays: "Displays",
-          retentionDays: "Retention days", doors: "Doors", readers: "Readers", controllers: "Controllers", clients: "Clients",
-          lanes: "Lanes", barriers: "Barriers", entrances: "Entrances", indoorStations: "Indoor stations", detectors: "Detectors",
-          panels: "Panels", sirens: "Sirens"
-        }
-      }
-    };
-
     const state = {
-      locale: "cn",
+      locale: (() => {
+        const site = new URLSearchParams(location.search).get("site");
+        return site === "cn" || site === "zh" ? "cn" : "en";
+      })(),
+      category: "camera",
+      keyword: "",
+      directoryQuery: "",
+      sort: "default",
       scenarioId: "video",
       metrics: {},
-      selectedSeries: {},
-      selectedModels: {},
+      selected: [],
+      drawerOpen: true,
+      tool: "topology",
       data: null,
       mermaid: ""
+    };
+
+    const categoryOrder = ["camera", "recorder", "display", "switch", "accessory", "access", "intercom", "alarm", "parking", "thermal", "software", "storage", "server", "audio", "fire", "ptz"];
+    const categoryText = {
+      camera: "Cameras Products",
+      recorder: "Backend Products",
+      display: "Display and Control",
+      switch: "Networking",
+      accessory: "Accessories",
+      access: "Access Control Products",
+      intercom: "Video Intercom Products",
+      alarm: "Alarm Products",
+      parking: "Parking Management",
+      thermal: "Thermal Products",
+      software: "Software",
+      storage: "Intelligent Storage",
+      server: "Server Products",
+      audio: "Audio Products",
+      fire: "Fire Products",
+      ptz: "PTZ Cameras"
+    };
+    const cnCategoryText = {
+      camera: "摄像机产品",
+      recorder: "后端录像产品",
+      display: "显示与控制",
+      switch: "网络传输",
+      accessory: "配件",
+      access: "门禁产品",
+      intercom: "可视对讲",
+      alarm: "报警产品",
+      parking: "停车管理",
+      thermal: "热成像产品",
+      software: "软件平台",
+      storage: "智能存储",
+      server: "服务器产品",
+      audio: "音频产品",
+      fire: "消防产品",
+      ptz: "云台球机"
+    };
+    const metricNames = {
+      cameras: ["Cameras", "摄像机"], ptz: ["PTZ", "球机"], recorders: ["NVR", "录像机"], switches: ["Switch", "交换机"],
+      displays: ["Display", "显示"], retentionDays: ["Days", "天数"], doors: ["Doors", "门点"], readers: ["Readers", "读卡器"],
+      controllers: ["Controllers", "控制器"], clients: ["Client", "客户端"], lanes: ["Lanes", "车道"], barriers: ["Barrier", "道闸"],
+      entrances: ["Entrances", "入口"], indoorStations: ["Indoor", "室内机"], detectors: ["Detector", "探测器"], panels: ["Panel", "主机"],
+      sirens: ["Siren", "声光"]
     };
 
     const $ = (id) => document.getElementById(id);
@@ -405,330 +874,373 @@
       })
     ]).then(([data]) => {
       state.data = data;
-      setScenario(state.scenarioId, true);
-      bindEvents();
+      state.locale = data.families[state.locale] ? state.locale : (data.families.en ? "en" : Object.keys(data.families)[0]);
+      state.metrics = { ...getScenario().defaults };
+      applyScenarioSelection();
+      bind();
       render();
     });
 
-    function bindEvents() {
-      document.querySelector(".seg").addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-locale]");
-        if (!button) return;
-        state.locale = button.dataset.locale;
-        document.querySelectorAll(".seg button").forEach((item) => item.classList.toggle("active", item === button));
+    function bind() {
+      $("selectedTop").addEventListener("click", () => {
+        state.drawerOpen = true;
+        renderDrawerState();
+      });
+      $("drawerClose").addEventListener("click", () => {
+        state.drawerOpen = false;
+        renderDrawerState();
+      });
+      $("languageLabel").addEventListener("click", () => {
+        state.locale = state.locale === "en" ? "cn" : "en";
+        state.category = categoryOrder.find((key) => state.data.families[state.locale]?.[key]?.length) || state.category;
+        state.metrics = { ...getScenario().defaults };
+        applyScenarioSelection();
         render();
       });
-
-      $("scenarioList").addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-scenario]");
-        if (button) setScenario(button.dataset.scenario);
+      $("keyword").addEventListener("input", (event) => { state.keyword = event.target.value; renderProducts(); });
+      $("directorySearch").addEventListener("input", (event) => { state.directoryQuery = event.target.value; renderCategories(); });
+      $("sortSelect").addEventListener("change", (event) => { state.sort = event.target.value; renderProducts(); });
+      $("categoryList").addEventListener("click", (event) => {
+        const row = event.target.closest("[data-category]");
+        if (!row) return;
+        state.category = row.dataset.category;
+        renderCategories();
+        renderProducts();
       });
-
-      $("metricGrid").addEventListener("input", (event) => {
-        const input = event.target.closest("input[data-metric]");
+      $("productGrid").addEventListener("click", (event) => {
+        const detail = event.target.closest("[data-detail]");
+        const add = event.target.closest("[data-add]");
+        if (!detail && !add) return;
+        const item = productResults().shown.find((entry) => entry.cardId === (detail?.dataset.detail || add?.dataset.add));
+        if (!item) return;
+        if (detail) showDetails(item);
+        if (add) {
+          addProduct(item, item.category);
+          state.drawerOpen = true;
+          renderDrawerState();
+        }
+      });
+      $("selectedList").addEventListener("click", (event) => {
+        const inc = event.target.closest("[data-inc]");
+        const dec = event.target.closest("[data-dec]");
+        const remove = event.target.closest("[data-remove]");
+        const key = inc?.dataset.inc || dec?.dataset.dec || remove?.dataset.remove;
+        if (!key) return;
+        const item = state.selected.find((entry) => entry.uid === key);
+        if (!item) return;
+        if (inc) item.qty += 1;
+        if (dec) item.qty = Math.max(1, item.qty - 1);
+        if (remove) state.selected = state.selected.filter((entry) => entry.uid !== key);
+        renderSelection();
+        renderOutput();
+      });
+      $("selectedList").addEventListener("input", (event) => {
+        const input = event.target.closest("[data-qty]");
+        if (!input) return;
+        const item = state.selected.find((entry) => entry.uid === input.dataset.qty);
+        if (item) item.qty = Math.max(1, Number(input.value || 1));
+        renderOutput();
+      });
+      $("scenarioSelect").addEventListener("change", (event) => {
+        state.scenarioId = event.target.value;
+        state.metrics = { ...getScenario().defaults };
+        renderMetrics();
+      });
+      $("applyScenario").addEventListener("click", () => {
+        applyScenarioSelection();
+        render();
+      });
+      $("metricRow").addEventListener("input", (event) => {
+        const input = event.target.closest("[data-metric]");
         if (!input) return;
         state.metrics[input.dataset.metric] = Math.max(0, Number(input.value || 0));
         renderOutput();
       });
-
-      $("roleTable").addEventListener("change", (event) => {
-        const seriesSelect = event.target.closest("select[data-role-series]");
-        const modelSelect = event.target.closest("select[data-role-model]");
-        if (seriesSelect) {
-          state.selectedSeries[seriesSelect.dataset.roleSeries] = seriesSelect.value;
-          delete state.selectedModels[seriesSelect.dataset.roleSeries];
-          render();
-        }
-        if (modelSelect) {
-          state.selectedModels[modelSelect.dataset.roleModel] = modelSelect.value;
-          renderOutput();
-        }
+      document.querySelector(".tool-tabs").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-tool]");
+        if (!button) return;
+        state.tool = button.dataset.tool;
+        document.querySelectorAll("[data-tool]").forEach((tab) => tab.classList.toggle("active", tab === button));
+        renderOutput();
       });
-
-      $("autoPickBtn").addEventListener("click", () => {
-        autoPick(getScenario());
-        render();
+      $("clearAll").addEventListener("click", () => {
+        state.selected = [];
+        renderSelection();
+        renderOutput();
       });
-      $("copyBtn").addEventListener("click", copyMermaid);
+      $("copyBtn").addEventListener("click", async () => {
+        await navigator.clipboard.writeText(state.mermaid);
+        const old = $("copyBtn").textContent;
+        $("copyBtn").textContent = "Copied";
+        setTimeout(() => { $("copyBtn").textContent = old; }, 1200);
+      });
       $("svgBtn").addEventListener("click", exportSvg);
       $("jsonBtn").addEventListener("click", exportJson);
-      $("projectName").addEventListener("input", renderOutput);
-      $("siteName").addEventListener("input", renderOutput);
     }
 
-    function setScenario(id, firstRun = false) {
-      state.scenarioId = id;
+    function render() {
+      renderChromeLabels();
+      renderDrawerState();
+      $("scenarioSelect").innerHTML = state.data.scenarios.map((scenario) => `<option value="${escapeHtml(scenario.id)}"${scenario.id === state.scenarioId ? " selected" : ""}>${escapeHtml(scenario.labels[state.locale])}</option>`).join("");
+      renderMetrics();
+      renderCategories();
+      renderProducts();
+      renderSelection();
+      renderOutput();
+    }
+
+    function renderChromeLabels() {
+      const isCn = state.locale === "cn";
+      $("languageLabel").textContent = isCn ? "简体中文" : "Global-English";
+      $("keyword").placeholder = isCn ? "请输入关键词，多个关键词用空格分隔。" : "Enter keywords. Multiple keywords should be separated by space.";
+      $("directorySearch").placeholder = isCn ? "搜索目录" : "Search Directory";
+      $("saveProjectBtn").textContent = isCn ? "▣ 另存为新项目" : "▣ Save As a New Project";
+      $("searchBtn").textContent = "⌕";
+      $("applyScenario").textContent = isCn ? "生成" : "Generate";
+      $("clearAll").textContent = isCn ? "清空全部" : "Clear All";
+      $("newOnlyText").textContent = isCn ? "仅显示新产品" : "Display New Products Only";
+      document.querySelector(".login").textContent = isCn ? "登录" : "Log In";
+      const sortLabels = isCn ? ["默认", "型号数量", "差异覆盖", "名称"] : ["Default", "Model Count", "Diff Coverage", "Name"];
+      Array.from($("sortSelect").options).forEach((option, index) => { option.textContent = sortLabels[index]; });
+      const labels = isCn ? ["拓扑", "BOM", "源码"] : ["Topology", "BOM", "Source"];
+      document.querySelectorAll("[data-tool]").forEach((button, index) => { button.textContent = labels[index]; });
+      $("copyBtn").textContent = isCn ? "复制拓扑" : "Copy Diagram";
+      $("svgBtn").textContent = isCn ? "导出 SVG" : "Export SVG";
+      $("jsonBtn").textContent = isCn ? "导出 BOM" : "Export BOM";
+    }
+
+    function renderDrawerState() {
+      $("workspace").classList.toggle("drawer-open", state.drawerOpen);
+    }
+
+    function renderCategories() {
+      const q = state.directoryQuery.trim().toLowerCase();
+      const groups = state.data.families[state.locale] || {};
+      const rows = categoryOrder
+        .filter((key) => groups[key]?.length)
+        .filter((key) => !q || labelForCategory(key).toLowerCase().includes(q))
+        .map((key) => {
+          const active = key === state.category ? " active" : "";
+          const count = groups[key].reduce((sum, product) => sum + (product.models?.length || product.modelCount || 1), 0);
+          return `<div class="category-row${active}" data-category="${escapeHtml(key)}"><span class="twisty">›</span><span class="box"></span><span class="category-name">${escapeHtml(labelForCategory(key))}</span><span class="cat-count">${count}</span></div>`;
+        });
+      $("categoryList").innerHTML = rows.join("");
+    }
+
+    function renderProducts() {
+      const result = productResults();
+      $("totalLabel").textContent = `${state.locale === "cn" ? "总数" : "Total"}: ${result.total}`;
+      const cards = result.shown.map((product, index) => productCard(product, index)).join("");
+      const note = result.total > result.shown.length
+        ? `<div class="result-note">${state.locale === "cn" ? `已显示前 ${result.shown.length} 个型号，可继续搜索缩小范围` : `Showing first ${result.shown.length} models. Use search to narrow all results.`}</div>`
+        : "";
+      $("productGrid").innerHTML = cards ? `${cards}${note}` : `<div class="empty">${state.locale === "cn" ? "暂无产品" : "No products"}</div>`;
+    }
+
+    function productCard(item, index) {
+      const product = item.product;
+      const isNew = index < 8 ? `<span class="new-tag">New</span>` : "";
+      return `
+        <article class="product-card">
+          <div class="tag-row"><span class="mini-tag">SPEC</span><span class="mini-tag">VS</span><span class="star">☆</span></div>
+          <div class="visual"><div class="device ${deviceClass(item.category)}"></div></div>
+          <div class="card-info">
+            <div class="product-title">${escapeHtml(item.model)}${isNew}</div>
+            <div class="product-desc">${escapeHtml(product.name)} · ${product.modelCount} models · ${product.diffFields} diff fields</div>
+          </div>
+          <div class="hover-actions">
+            <button data-detail="${escapeHtml(item.cardId)}">Details</button>
+            <button data-add="${escapeHtml(item.cardId)}">Add</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderMetrics() {
       const scenario = getScenario();
-      state.metrics = { ...scenario.defaults };
-      if (!firstRun) {
-        state.selectedSeries = {};
-        state.selectedModels = {};
+      $("metricRow").innerHTML = Object.keys(scenario.defaults).slice(0, 6).map((key) => {
+        const label = metricNames[key]?.[state.locale === "cn" ? 1 : 0] || key;
+        return `<div class="metric"><label>${escapeHtml(label)}</label><input data-metric="${escapeHtml(key)}" type="number" min="0" value="${Number(state.metrics[key] || 0)}"></div>`;
+      }).join("");
+    }
+
+    function renderSelection() {
+      const selectedTitle = state.locale === "cn" ? "已选产品" : "Selected Products";
+      $("selectedHead").textContent = `${selectedTitle} (${state.selected.length})`;
+      $("selectedTop").textContent = `🛒 ${selectedTitle} (${state.selected.length})`;
+      if (!state.selected.length) {
+        $("selectedList").innerHTML = `<div class="empty">${state.locale === "cn" ? "暂无已选产品" : "No selected products"}</div>`;
+        return;
       }
-      autoPick(scenario);
-      render();
+      $("selectedList").innerHTML = state.selected.map((item) => `
+        <div class="selected-item">
+          <div>
+            <strong>${escapeHtml(item.model)}</strong>
+            <span>${escapeHtml(item.product.name)} · ${escapeHtml(labelForCategory(item.category))}</span>
+            <a href="${escapeHtml(item.url || item.product.url)}" target="_blank" rel="noreferrer">${state.locale === "cn" ? "详情" : "Details"}</a>
+          </div>
+          <div>
+            <div class="qty-controls">
+              <button data-dec="${escapeHtml(item.uid)}">-</button>
+              <input data-qty="${escapeHtml(item.uid)}" value="${item.qty}">
+              <button data-inc="${escapeHtml(item.uid)}">+</button>
+            </div>
+            <button style="margin-top:6px;width:90px;height:24px;border:1px solid #ccc;background:#fff" data-remove="${escapeHtml(item.uid)}">${state.locale === "cn" ? "移除" : "Remove"}</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderOutput() {
+      const source = buildMermaid();
+      state.mermaid = source;
+      if (state.tool === "source") {
+        $("topologyRender").innerHTML = `<pre style="white-space:pre-wrap;margin:0;font-size:12px">${escapeHtml(source)}</pre>`;
+      } else {
+        renderMermaid(source);
+      }
+      renderBom();
+    }
+
+    async function renderMermaid(source) {
+      try {
+        const result = await window.mermaid.render(`topology-${Date.now()}`, source);
+        $("topologyRender").innerHTML = result.svg;
+      } catch (error) {
+        $("topologyRender").innerHTML = `<pre>${escapeHtml(error.message)}\n${escapeHtml(source)}</pre>`;
+      }
+    }
+
+    function renderBom() {
+      const rows = state.selected.map((item) => `<tr><td>${escapeHtml(item.model)}</td><td>${item.qty}</td><td>${escapeHtml(labelForCategory(item.category))}</td></tr>`).join("");
+      const headers = state.locale === "cn"
+        ? ["型号", "数量", "类别"]
+        : ["Model", "Qty", "Category"];
+      $("bomWrap").innerHTML = state.tool === "topology"
+        ? `<table><thead><tr><th>${headers[0]}</th><th>${headers[1]}</th><th>${headers[2]}</th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<table><thead><tr><th>${headers[0]}</th><th>${headers[1]}</th><th>${headers[2]}</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function buildMermaid() {
+      const byCategory = new Map();
+      for (const item of state.selected) {
+        if (!byCategory.has(item.category)) byCategory.set(item.category, []);
+        byCategory.get(item.category).push(item);
+      }
+      const lines = ["flowchart LR", "  client[Client / Control Center]", "  platform[Management Platform]"];
+      if (byCategory.has("switch")) lines.push(`  switch[Network / Switch\\n${sumQty(byCategory.get("switch"))} pcs]`);
+      if (byCategory.has("recorder")) lines.push(`  recorder[NVR / Storage\\n${sumQty(byCategory.get("recorder"))} pcs]`);
+      if (byCategory.has("camera")) lines.push(`  camera[Cameras\\n${sumQty(byCategory.get("camera"))} pcs]`);
+      if (byCategory.has("ptz")) lines.push(`  ptz[PTZ\\n${sumQty(byCategory.get("ptz"))} pcs]`);
+      if (byCategory.has("access")) lines.push(`  access[Access Control\\n${sumQty(byCategory.get("access"))} pcs]`);
+      if (byCategory.has("intercom")) lines.push(`  intercom[Video Intercom\\n${sumQty(byCategory.get("intercom"))} pcs]`);
+      if (byCategory.has("parking")) lines.push(`  parking[Parking\\n${sumQty(byCategory.get("parking"))} pcs]`);
+      if (byCategory.has("alarm") || byCategory.has("fire")) lines.push(`  alarm[Alarm / Fire\\n${sumQty([...(byCategory.get("alarm") || []), ...(byCategory.get("fire") || [])])} pcs]`);
+      if (byCategory.has("display")) lines.push(`  display[Display Wall\\n${sumQty(byCategory.get("display"))} pcs]`);
+      if (byCategory.has("audio")) lines.push(`  audio[Public Address\\n${sumQty(byCategory.get("audio"))} pcs]`);
+      lines.push("  client --> platform");
+      if (byCategory.has("switch")) lines.push("  platform --> switch");
+      if (byCategory.has("camera")) lines.push(`  ${byCategory.has("switch") ? "switch" : "platform"} --> camera`);
+      if (byCategory.has("ptz")) lines.push(`  ${byCategory.has("switch") ? "switch" : "platform"} --> ptz`);
+      if (byCategory.has("recorder")) lines.push(`  ${byCategory.has("switch") ? "switch" : "platform"} --> recorder`);
+      if (byCategory.has("access")) lines.push(`  ${byCategory.has("switch") ? "switch" : "platform"} --> access`);
+      if (byCategory.has("intercom")) lines.push(`  ${byCategory.has("switch") ? "switch" : "platform"} --> intercom`);
+      if (byCategory.has("parking")) lines.push(`  ${byCategory.has("switch") ? "switch" : "platform"} --> parking`);
+      if (byCategory.has("alarm") || byCategory.has("fire")) lines.push("  platform --> alarm");
+      if (byCategory.has("display")) lines.push("  platform --> display");
+      if (byCategory.has("audio")) lines.push("  platform --> audio");
+      lines.push("  classDef core fill:#eaf1ff,stroke:#2867f0,color:#111");
+      lines.push("  classDef edge fill:#fff,stroke:#aeb7c2,color:#111");
+      lines.push("  class client,platform,recorder core");
+      return lines.join("\n");
+    }
+
+    function applyScenarioSelection() {
+      const scenario = getScenario();
+      state.selected = [];
+      for (const role of scenario.roles) {
+        const candidate = (state.data.families[state.locale]?.[role.category] || [])[0];
+        if (!candidate) continue;
+        addProduct(toModelItem(candidate, role.category, 0), role.category, Math.max(1, Number(state.metrics[role.qty] || 1)), false);
+      }
+    }
+
+    function addProduct(item, category, qty = 1, rerender = true) {
+      const product = item.product || item;
+      const model = item.model || product.models?.[0]?.name || product.name;
+      const url = item.url || product.models?.[0]?.url || product.url;
+      const existing = state.selected.find((entry) => entry.product.id === product.id && entry.category === category && entry.model === model);
+      if (existing) existing.qty += qty;
+      else state.selected.push({ uid: `${product.id}-${category}-${model}-${Date.now()}-${Math.random().toString(16).slice(2)}`, product, category, model, url, qty });
+      if (rerender) {
+        renderSelection();
+        renderOutput();
+      }
+    }
+
+    function showDetails(item) {
+      const product = item.product || item;
+      const diff = product.differenceSummary?.map((item) => `${item.field}: ${item.values.join(" / ")}`).join("\n") || "No spec differences collected yet.";
+      alert(`${item.model || product.name}\n\nSeries: ${product.name}\nModels: ${product.modelCount}\nCompared: ${product.comparedModels}\nDiff fields: ${product.diffFields}\n\n${diff}`);
+    }
+
+    function productResults() {
+      const q = state.keyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      let list = (state.data.families[state.locale]?.[state.category] || []).flatMap((product) => {
+        const models = product.models?.length ? product.models : [{ name: product.name, url: product.url }];
+        return models.map((model, index) => toModelItem(product, state.category, index, model));
+      });
+      if (q.length) {
+        list = list.filter((item) => {
+          const haystack = [item.model, item.product.name, item.product.pathText].join(" ").toLowerCase();
+          return q.every((word) => haystack.includes(word));
+        });
+      }
+      if (state.sort === "models") list.sort((a, b) => b.product.modelCount - a.product.modelCount);
+      if (state.sort === "diffs") list.sort((a, b) => b.product.diffFields - a.product.diffFields);
+      if (state.sort === "name") list.sort((a, b) => a.model.localeCompare(b.model));
+      return { total: list.length, shown: list.slice(0, 96) };
+    }
+
+    function toModelItem(product, category, index, model = product.models?.[index] || product.models?.[0]) {
+      const modelName = model?.name || product.name;
+      return {
+        cardId: `${product.id}::${index}`,
+        product,
+        category,
+        model: modelName,
+        url: model?.url || product.url
+      };
     }
 
     function getScenario() {
       return state.data.scenarios.find((scenario) => scenario.id === state.scenarioId) || state.data.scenarios[0];
     }
 
-    function autoPick(scenario) {
-      for (const role of scenario.roles) {
-        const candidate = getCandidates(role.category)[0];
-        if (candidate) {
-          state.selectedSeries[role.key] = candidate.id;
-          state.selectedModels[role.key] = candidate.models[0]?.name || candidate.name;
-        }
-      }
+    function labelForCategory(key) {
+      if (state.locale === "cn") return cnCategoryText[key] || state.data.categoryLabels[key]?.cn || key;
+      return categoryText[key] || state.data.categoryLabels[key]?.en || key;
     }
 
-    function render() {
-      const t = text();
-      $("subtitle").textContent = t.subtitle;
-      $("atlasLink").textContent = t.atlas;
-      $("projectTitle").textContent = t.project;
-      $("projectNameLabel").textContent = t.projectName;
-      $("siteNameLabel").textContent = t.siteName;
-      $("scenarioLabel").textContent = t.scenario;
-      $("metricsLabel").textContent = t.metrics;
-      $("selectionTitle").textContent = t.selection;
-      $("autoPickBtn").textContent = t.autoPick;
-      $("topologyTitle").textContent = t.topology;
-      $("copyBtn").textContent = t.copy;
-      $("svgBtn").textContent = t.svg;
-      $("jsonBtn").textContent = t.json;
-      $("bomTitle").textContent = t.bom;
-      $("sourceSummary").textContent = t.source;
-
-      renderScenarios();
-      renderMetrics();
-      renderRoles();
-      renderOutput();
+    function deviceClass(category) {
+      if (category === "ptz" || category === "thermal") return "ptz";
+      if (["recorder", "switch", "storage", "server"].includes(category)) return "boxy";
+      if (["access", "intercom", "display", "alarm", "fire", "audio", "parking"].includes(category)) return "panel";
+      return "camera";
     }
 
-    function renderScenarios() {
-      $("scenarioList").innerHTML = state.data.scenarios.map((scenario) => {
-        const active = scenario.id === state.scenarioId ? " active" : "";
-        const roles = scenario.roles.map((role) => role.labels[state.locale]).slice(0, 3).join(" / ");
-        return `<button class="scenario-btn${active}" data-scenario="${escapeHtml(scenario.id)}"><strong>${escapeHtml(scenario.labels[state.locale])}</strong><span>${escapeHtml(roles)}</span></button>`;
-      }).join("");
-    }
-
-    function renderMetrics() {
-      const t = text();
-      const scenario = getScenario();
-      $("metricGrid").innerHTML = Object.keys(scenario.defaults).map((key) => `
-        <div class="field">
-          <label for="metric-${escapeHtml(key)}">${escapeHtml(t.metricLabels[key] || key)}</label>
-          <input id="metric-${escapeHtml(key)}" data-metric="${escapeHtml(key)}" type="number" min="0" step="1" value="${Number(state.metrics[key] || 0)}">
-        </div>
-      `).join("");
-    }
-
-    function renderRoles() {
-      const scenario = getScenario();
-      $("roleTable").innerHTML = scenario.roles.map((role) => roleRow(role)).join("");
-      renderDiffs();
-      renderStatus();
-    }
-
-    function roleRow(role) {
-      const t = text();
-      const candidates = getCandidates(role.category);
-      const selected = findSelected(role);
-      const selectedId = selected?.id || "";
-      const models = selected?.models?.length ? selected.models : [{ name: selected?.name || t.noData, url: selected?.url || "" }];
-      const selectedModel = state.selectedModels[role.key] || models[0]?.name || "";
-      const categoryLabel = state.data.categoryLabels[role.category]?.[state.locale] || role.category;
-      const qty = quantityForRole(role);
-      if (!candidates.length) {
-        return `<div class="role-row"><div class="role-title"><strong>${escapeHtml(role.labels[state.locale])}</strong><span>${escapeHtml(categoryLabel)}</span></div><div class="empty">${escapeHtml(t.noData)}</div><div></div><div class="qty-pill">${qty}</div></div>`;
-      }
-      return `
-        <div class="role-row">
-          <div class="role-title">
-            <strong>${escapeHtml(role.labels[state.locale])}</strong>
-            <span>${escapeHtml(categoryLabel)}</span>
-          </div>
-          <select data-role-series="${escapeHtml(role.key)}" aria-label="${escapeHtml(t.series)}">
-            ${candidates.map((item) => `<option value="${escapeHtml(item.id)}"${item.id === selectedId ? " selected" : ""}>${escapeHtml(item.name)} · ${item.modelCount} · diff ${item.diffFields}</option>`).join("")}
-          </select>
-          <select data-role-model="${escapeHtml(role.key)}" aria-label="${escapeHtml(t.model)}">
-            ${models.map((model) => `<option value="${escapeHtml(model.name)}"${model.name === selectedModel ? " selected" : ""}>${escapeHtml(model.name)}</option>`).join("")}
-          </select>
-          <div class="qty-pill">${escapeHtml(String(qty))}</div>
-        </div>
-      `;
-    }
-
-    function renderDiffs() {
-      const t = text();
-      const scenario = getScenario();
-      const items = [];
-      for (const role of scenario.roles) {
-        const selected = findSelected(role);
-        if (!selected?.differenceSummary?.length) continue;
-        for (const diff of selected.differenceSummary.slice(0, 2)) {
-          items.push(`<div class="diff-item"><strong>${escapeHtml(role.labels[state.locale])} · ${escapeHtml(diff.field)}</strong>${escapeHtml(diff.values.join(" / "))}</div>`);
-        }
-      }
-      $("diffBox").innerHTML = items.length ? `<h3 style="margin:2px 0 0;font-size:14px;">${escapeHtml(t.diffTitle)}</h3>${items.join("")}` : "";
-    }
-
-    function renderStatus() {
-      const t = text();
-      const scenario = getScenario();
-      const roleCount = scenario.roles.filter((role) => findSelected(role)).length;
-      const productCount = scenario.roles.reduce((sum, role) => sum + getCandidates(role.category).length, 0);
-      $("statusGrid").innerHTML = [
-        [t.selectedRoles, roleCount],
-        [t.products, productCount],
-        [t.topologyNodes, scenario.topology.nodes.length],
-        [t.generated, new Date(state.data.generatedAt).toLocaleDateString(state.locale === "cn" ? "zh-CN" : "en-US")]
-      ].map(([label, value]) => `<div class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`).join("");
-    }
-
-    function renderOutput() {
-      const mermaid = buildMermaid();
-      state.mermaid = mermaid;
-      $("mermaidSource").textContent = mermaid;
-      renderTopology(mermaid);
-      renderBom();
-    }
-
-    async function renderTopology(source) {
-      if (!window.mermaid) return;
-      try {
-        const result = await window.mermaid.render(`solution-${Date.now()}`, source);
-        $("topologyRender").innerHTML = result.svg;
-      } catch (error) {
-        $("topologyRender").innerHTML = `<pre>${escapeHtml(source)}\n\n${escapeHtml(error.message)}</pre>`;
-      }
-    }
-
-    function renderBom() {
-      const t = text();
-      const rows = buildBom();
-      $("bomHead").innerHTML = [t.role, t.qty, t.category, t.series, t.model, t.sourceLink].map((head) => `<th>${escapeHtml(head)}</th>`).join("");
-      $("bomBody").innerHTML = rows.map((row) => `
-        <tr>
-          <td>${escapeHtml(row.role)}</td>
-          <td>${escapeHtml(String(row.qty))}</td>
-          <td>${escapeHtml(row.category)}</td>
-          <td>${escapeHtml(row.series)}</td>
-          <td>${escapeHtml(row.model)}</td>
-          <td>${row.url ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noreferrer">open</a>` : ""}</td>
-        </tr>
-      `).join("");
-    }
-
-    function buildMermaid() {
-      const scenario = getScenario();
-      const lines = [
-        "flowchart LR",
-        `  project["${mermaidText($("projectName").value || "Hikvision Solution")}\\n${mermaidText($("siteName").value || "")}"]`
-      ];
-      for (const node of scenario.topology.nodes) {
-        if (node.optionalMetric && Number(state.metrics[node.metric] || 0) <= 0) continue;
-        lines.push(`  ${node.id}["${mermaidText(nodeLabel(node))}"]`);
-      }
-      const firstNode = scenario.topology.nodes.find((node) => !(node.optionalMetric && Number(state.metrics[node.metric] || 0) <= 0));
-      if (firstNode) lines.push(`  project --> ${firstNode.id}`);
-      for (const [from, to] of scenario.topology.edges) {
-        const fromNode = scenario.topology.nodes.find((node) => node.id === from);
-        const toNode = scenario.topology.nodes.find((node) => node.id === to);
-        if (!fromNode || !toNode) continue;
-        if (fromNode.optionalMetric && Number(state.metrics[fromNode.metric] || 0) <= 0) continue;
-        if (toNode.optionalMetric && Number(state.metrics[toNode.metric] || 0) <= 0) continue;
-        lines.push(`  ${from} --> ${to}`);
-      }
-      lines.push("  classDef default fill:#f7fafc,stroke:#8b98a7,color:#17202a");
-      lines.push("  classDef active fill:#fdecec,stroke:#c8282d,color:#17202a");
-      lines.push("  class project,platform,recorder active");
-      return lines.join("\n");
-    }
-
-    function nodeLabel(node) {
-      const label = node.labels[state.locale] || node.id;
-      const selected = node.role ? findSelectedByRoleKey(node.role) : null;
-      const model = node.role ? state.selectedModels[node.role] : "";
-      const metric = node.metric ? Number(state.metrics[node.metric] || 0) : null;
-      const suffix = node.metricSuffix?.[state.locale] || "";
-      const lines = [label];
-      if (metric !== null) lines.push(`${metric}${suffix}`);
-      if (selected) lines.push(selected.name);
-      if (model && model !== selected?.name) lines.push(model);
-      return lines.filter(Boolean).slice(0, 4).join("\\n");
-    }
-
-    function buildBom() {
-      const scenario = getScenario();
-      return scenario.roles.map((role) => {
-        const selected = findSelected(role);
-        return {
-          role: role.labels[state.locale],
-          qty: quantityForRole(role),
-          category: state.data.categoryLabels[role.category]?.[state.locale] || role.category,
-          series: selected?.name || "",
-          model: state.selectedModels[role.key] || selected?.models?.[0]?.name || "",
-          url: selected?.url || ""
-        };
-      }).filter((row) => row.series);
-    }
-
-    function getCandidates(category) {
-      return state.data?.families?.[state.locale]?.[category] || [];
-    }
-
-    function findSelected(role) {
-      const candidates = getCandidates(role.category);
-      return candidates.find((item) => item.id === state.selectedSeries[role.key]) || candidates[0] || null;
-    }
-
-    function findSelectedByRoleKey(roleKey) {
-      const role = getScenario().roles.find((item) => item.key === roleKey);
-      return role ? findSelected(role) : null;
-    }
-
-    function quantityForRole(role) {
-      return role.qty ? Number(state.metrics[role.qty] || 0) : 1;
-    }
-
-    function text() {
-      return i18n[state.locale] || i18n.cn;
-    }
-
-    async function copyMermaid() {
-      await navigator.clipboard.writeText(state.mermaid);
-      const t = text();
-      const button = $("copyBtn");
-      const old = button.textContent;
-      button.textContent = t.copied;
-      setTimeout(() => { button.textContent = old; }, 1200);
+    function sumQty(items) {
+      return items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
     }
 
     function exportSvg() {
       const svg = $("topologyRender").querySelector("svg");
       if (!svg) return;
-      download(`${fileBase()}-topology.svg`, new XMLSerializer().serializeToString(svg), "image/svg+xml");
+      download("hikvision-topology.svg", new XMLSerializer().serializeToString(svg), "image/svg+xml");
     }
 
     function exportJson() {
-      const payload = {
-        project: $("projectName").value,
-        site: $("siteName").value,
-        locale: state.locale,
-        scenario: getScenario().labels[state.locale],
-        metrics: state.metrics,
-        bom: buildBom(),
-        mermaid: state.mermaid,
-        generatedAt: new Date().toISOString()
-      };
-      download(`${fileBase()}-bom.json`, JSON.stringify(payload, null, 2), "application/json");
-    }
-
-    function fileBase() {
-      return ($("projectName").value || "hikvision-solution").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "hikvision-solution";
+      download("hikvision-bom.json", JSON.stringify({ selected: state.selected.map((item) => ({ model: item.model, series: item.product.name, category: labelForCategory(item.category), qty: item.qty, url: item.url || item.product.url })), mermaid: state.mermaid, generatedAt: new Date().toISOString() }, null, 2), "application/json");
     }
 
     function download(filename, content, type) {
@@ -741,10 +1253,6 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-    }
-
-    function mermaidText(value) {
-      return String(value || "").replace(/"/g, "'").replace(/[<>]/g, "").replace(/\r?\n/g, " ").slice(0, 180);
     }
 
     function escapeHtml(value) {
