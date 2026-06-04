@@ -1,14 +1,19 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import * as cheerio from "cheerio";
 
 const ROOT = process.cwd();
 const SITE_DIR = path.join(ROOT, "site");
+const CACHE_DIR = path.join(ROOT, "data", "cache");
 const CATALOG_FILE = path.join(SITE_DIR, "catalog.json");
 const DIFF_FILE = path.join(SITE_DIR, "diff-data.json");
+const ASSET_CACHE_FILE = path.join(CACHE_DIR, "product-assets.json");
 const OUT_FILE = path.join(SITE_DIR, "selector-data.json");
 
 const catalog = JSON.parse(await readFile(CATALOG_FILE, "utf8"));
 const diffData = await readJson(DIFF_FILE, { locales: {} });
+const assetCache = await readJson(ASSET_CACHE_FILE, {});
+const REFRESH_ASSETS = process.argv.includes("--refresh-assets") || process.env.REFRESH_PRODUCT_ASSETS === "1";
 
 const CATEGORY_RULES = [
   { id: "camera", terms: ["network-cameras", "fixed-camera", "turbo-hd-cameras", "analog-camera", "bullet", "dome", "turret", "hilook-ip-products/network-cameras"] },
@@ -194,7 +199,7 @@ for (const [localeCode, locale] of Object.entries(catalog.locales)) {
       pathText: series.path.join(" / "),
       url: series.url,
       modelCount: series.modelCount,
-      models: series.models.slice(0, 60).map((model) => ({ name: cleanModelName(model.name), url: model.url })),
+      models: series.models.slice(0, 60).map((model) => ({ name: cleanModelName(model.name, model.url), url: model.url })),
       diffFields: diff?.differences?.length || 0,
       comparedModels: diff?.specCoverage || 0,
       differenceSummary: (diff?.differences || []).slice(0, 6).map((difference) => ({
@@ -216,6 +221,10 @@ for (const [localeCode, locale] of Object.entries(catalog.locales)) {
   families[localeCode] = byCategory;
 }
 
+await hydrateProductAssets(families);
+await mkdir(CACHE_DIR, { recursive: true });
+await writeFile(ASSET_CACHE_FILE, JSON.stringify(assetCache, null, 2), "utf8");
+
 const payload = {
   generatedAt: new Date().toISOString(),
   source: {
@@ -228,6 +237,129 @@ const payload = {
 };
 
 await writeFile(OUT_FILE, JSON.stringify(payload), "utf8");
+
+async function hydrateProductAssets(familyMap) {
+  const byItem = new Map();
+  for (const localeFamilies of Object.values(familyMap)) {
+    for (const items of Object.values(localeFamilies)) {
+      for (const item of items) {
+        if (!byItem.has(item.id)) byItem.set(item.id, item);
+      }
+    }
+  }
+
+  const entries = [...byItem.values()];
+  let cursor = 0;
+  const workers = Array.from({ length: 8 }, async () => {
+    while (cursor < entries.length) {
+      const item = entries[cursor++];
+      const asset = await getBestProductAsset(item);
+      if (asset.imageUrl) item.imageUrl = asset.imageUrl;
+      if (asset.description) item.description = asset.description;
+      if (asset.detailTitle) item.detailTitle = asset.detailTitle;
+      if (asset.sourceModelUrl) item.sourceModelUrl = asset.sourceModelUrl;
+    }
+  });
+  await Promise.all(workers);
+}
+
+async function getBestProductAsset(item) {
+  const urls = [
+    ...(item.models || []).slice(0, 8).map((model) => model.url),
+    item.url
+  ].filter(Boolean);
+
+  let fallback = null;
+  for (const url of [...new Set(urls)]) {
+    const asset = await getProductAsset(url);
+    const withSource = { ...asset, sourceModelUrl: url };
+    if (!fallback && (asset.description || asset.detailTitle)) fallback = withSource;
+    if (asset.imageUrl) return withSource;
+  }
+  return fallback || { imageUrl: "", description: "", detailTitle: "", sourceModelUrl: urls[0] || item.url };
+}
+
+async function getProductAsset(url) {
+  const cached = assetCache[url];
+  if (cached?.imageUrl || cached?.description) return cached;
+  if (!REFRESH_ASSETS) return cached || { imageUrl: "", description: "", detailTitle: "" };
+
+  const empty = { imageUrl: "", description: "", detailTitle: "", fetchedAt: new Date().toISOString() };
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "user-agent": "Mozilla/5.0 Hikvision product selector builder"
+      },
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) {
+      assetCache[url] = { ...empty, status: response.status };
+      return assetCache[url];
+    }
+    const html = await response.text();
+    assetCache[url] = extractProductAsset(html, url);
+    return assetCache[url];
+  } catch (error) {
+    assetCache[url] = { ...empty, error: error.message };
+    return assetCache[url];
+  }
+}
+
+function extractProductAsset(html, pageUrl) {
+  const $ = cheerio.load(html);
+  const candidates = [];
+  $("link[as='image'], link[data-type='image'], meta[property='og:image'], meta[name='twitter:image']").each((_, element) => {
+    const value = $(element).attr("href") || $(element).attr("content");
+    if (value) candidates.push(value);
+  });
+  for (const match of html.matchAll(/https?:\/\/assets\.hikvision\.com\/[^"'<>\s]+?\.(?:png|jpg|jpeg|webp)(?:\?[^"'<>\s]*)?/gi)) {
+    candidates.push(match[0]);
+  }
+
+  const imageUrl = candidates
+    .map((value) => absoluteUrl(decodeHtml(value), pageUrl))
+    .find(isProductImage) || "";
+  const description = cleanDescription($("meta[name='description']").attr("content") || "");
+  const detailTitle = cleanDescription($("title").text() || "");
+
+  return {
+    imageUrl,
+    description,
+    detailTitle,
+    fetchedAt: new Date().toISOString()
+  };
+}
+
+function isProductImage(value) {
+  const url = String(value || "").toLowerCase();
+  return url.includes("assets.hikvision.com")
+    && !url.includes("favicon")
+    && !url.includes("logo")
+    && !url.includes("/icons/")
+    && /\.(png|jpg|jpeg|webp)(?:\.thumb|\?|$)/i.test(url);
+}
+
+function absoluteUrl(value, base) {
+  try {
+    return new URL(value, base).toString();
+  } catch {
+    return value;
+  }
+}
+
+function decodeHtml(value) {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'");
+}
+
+function cleanDescription(value) {
+  return decodeHtml(value)
+    .replace(/\s+/g, " ")
+    .replace(/\s+-\s+Hikvision.*$/i, "")
+    .trim();
+}
 
 function classify(series) {
   const haystack = [series.key, series.name, series.path.join("/")].join("/").toLowerCase();
@@ -243,12 +375,41 @@ function cleanName(value) {
   return String(value || "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function cleanModelName(value) {
-  return String(value || "")
+function cleanModelName(value, url = "") {
+  const cleaned = String(value || "")
     .replace(/\s*-\s*海康威视Hikvision.*$/i, "")
     .replace(/\s*-\s*Hikvision.*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
+
+  const fromUrl = modelCodeFromUrl(url);
+  if (fromUrl) return fromUrl;
+  if (looksLikeModelCode(cleaned)) return normalizeModelCode(cleaned);
+  return cleaned;
+}
+
+function modelCodeFromUrl(value) {
+  try {
+    const url = new URL(value);
+    const segment = url.pathname.split("/").filter(Boolean).at(-1) || "";
+    const normalized = normalizeModelCode(decodeURIComponent(segment));
+    return looksLikeModelCode(normalized) ? normalized : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeModelCode(value) {
+  return String(value || "")
+    .replace(/^[\s-]+|[\s-]+$/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .toUpperCase();
+}
+
+function looksLikeModelCode(value) {
+  const text = String(value || "").trim();
+  return /[A-Z]{1,8}[\s-]*\d/i.test(text) && text.length <= 90;
 }
 
 function simplifyField(value) {

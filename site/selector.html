@@ -6,7 +6,7 @@
   <title>HiTools Style Product Selector</title>
   <style>
     :root {
-      --blue: #2867f0;
+      --blue: #386dfa;
       --blue-dark: #1e52cf;
       --line: #d8d8d8;
       --line-soft: #ececec;
@@ -17,17 +17,22 @@
       --rail: #f2f3f5;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body {
       margin: 0;
       height: 100vh;
       overflow: hidden;
       color: var(--text);
       background: var(--bg);
-      font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+      font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
       font-size: 14px;
     }
     button, input, select { font: inherit; }
     button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, .product-card:focus-visible {
+      outline: 2px solid rgba(56, 109, 250, .35);
+      outline-offset: 2px;
+    }
     a { color: var(--blue); text-decoration: none; }
     .app {
       height: 100vh;
@@ -66,6 +71,7 @@
       place-items: center;
       position: relative;
     }
+    .rail-btn:hover { background: #fff; color: var(--blue); }
     .rail-btn.active { background: #fff; color: var(--blue); }
     .rail-btn.active::before {
       content: "";
@@ -93,14 +99,16 @@
     .save-btn {
       height: 32px;
       min-width: 216px;
-      border: 1px solid var(--blue);
+      border: 0;
       color: var(--blue);
-      background: #fff;
+      background: transparent;
       display: inline-flex;
       align-items: center;
       gap: 9px;
       padding: 0 14px;
+      justify-content: flex-start;
     }
+    .save-btn:hover, .lang-toggle:hover { background: #f4f7ff; }
     .top-right {
       display: flex;
       align-items: center;
@@ -113,6 +121,7 @@
       color: #111;
       padding: 0;
       height: 32px;
+      padding-inline: 8px;
     }
     .login {
       min-width: 84px;
@@ -122,6 +131,7 @@
       background: var(--blue);
       color: #fff;
     }
+    .login:hover, .selected-top:hover, .searchbox button:hover, .scenario-row button:hover { background: var(--blue-dark); }
     .searchbar {
       background: #fff;
       border-bottom: 1px solid var(--line);
@@ -270,6 +280,8 @@
       align-items: center;
       gap: 8px;
       color: #333;
+      cursor: pointer;
+      user-select: none;
     }
     .small-box {
       width: 16px;
@@ -277,6 +289,22 @@
       border: 1px solid #bbb;
       display: inline-block;
       background: #fff;
+      position: relative;
+    }
+    .checkbox-line.active .small-box {
+      border-color: var(--blue);
+      background: var(--blue);
+    }
+    .checkbox-line.active .small-box::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 5px;
+      height: 9px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
     }
     .sort-area {
       display: flex;
@@ -312,6 +340,11 @@
       align-content: start;
       background: #fff;
     }
+    .product-grid.is-list {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding-top: 10px;
+    }
     .product-card {
       height: 180px;
       border: 1px solid #ddd;
@@ -320,10 +353,35 @@
       overflow: hidden;
       display: grid;
       grid-template-rows: 88px 1fr;
+      cursor: pointer;
+      transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease;
     }
     .product-card:hover {
-      border-color: #c8c8c8;
-      box-shadow: 0 4px 10px rgba(0,0,0,.08);
+      border-color: var(--blue);
+      box-shadow: 0 5px 14px rgba(56,109,250,.14);
+      transform: translateY(-1px);
+    }
+    .product-grid.is-list .product-card {
+      height: 118px;
+      grid-template-columns: 148px 1fr 116px;
+      grid-template-rows: 1fr;
+      align-items: stretch;
+    }
+    .product-grid.is-list .visual {
+      padding: 16px 14px;
+      border-right: 1px solid #f0f0f0;
+    }
+    .product-grid.is-list .card-info {
+      align-self: center;
+      padding: 14px 18px;
+    }
+    .product-grid.is-list .product-title {
+      height: auto;
+      line-height: 18px;
+    }
+    .product-grid.is-list .product-desc {
+      height: auto;
+      max-height: 38px;
     }
     .result-note {
       grid-column: 1 / -1;
@@ -358,7 +416,20 @@
     .visual {
       display: grid;
       place-items: center;
-      padding-top: 20px;
+      padding: 18px 18px 0;
+      min-width: 0;
+    }
+    .product-image {
+      max-width: 148px;
+      max-height: 72px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 4px 7px rgba(0,0,0,.12));
+    }
+    .product-image.is-fallback {
+      opacity: .78;
     }
     .device {
       position: relative;
@@ -437,11 +508,15 @@
       min-width: 0;
     }
     .product-title {
-      font-weight: 700;
+      font-family: "Segoe UI Semibold", "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-weight: 600;
+      font-size: 13px;
       line-height: 18px;
       height: 38px;
       overflow: hidden;
-      color: #0a0a0a;
+      color: rgba(0,0,0,.82);
+      letter-spacing: .16px;
+      text-transform: uppercase;
       word-break: break-word;
     }
     .product-desc {
@@ -477,7 +552,23 @@
       background: transparent;
       border-right: 1px solid rgba(255,255,255,.25);
     }
+    .hover-actions button:hover { background: rgba(56,109,250,.82); }
     .hover-actions button:last-child { border-right: 0; }
+    .product-grid.is-list .hover-actions {
+      position: static;
+      display: grid;
+      grid-template-columns: 1fr;
+      height: auto;
+      background: #fbfcff;
+      border-left: 1px solid #eef1f7;
+    }
+    .product-grid.is-list .hover-actions button {
+      color: var(--blue);
+      border-right: 0;
+      border-bottom: 1px solid #eef1f7;
+      background: transparent;
+    }
+    .product-grid.is-list .hover-actions button:hover { background: #eef4ff; }
     .selection {
       position: absolute;
       top: 0;
@@ -572,13 +663,35 @@
       border: 1px solid #ddd;
       padding: 9px;
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 54px 1fr auto;
       gap: 8px;
+      align-items: center;
+    }
+    .selected-thumb {
+      width: 54px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      background: #fafafa;
+      border: 1px solid #eee;
+      overflow: hidden;
+    }
+    .selected-thumb img {
+      max-width: 48px;
+      max-height: 36px;
+      object-fit: contain;
+    }
+    .selected-thumb .device {
+      transform: scale(.42);
     }
     .selected-item strong {
       display: block;
       line-height: 17px;
       font-size: 12px;
+      font-family: "Segoe UI Semibold", "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-weight: 600;
+      letter-spacing: .12px;
+      text-transform: uppercase;
       max-height: 34px;
       overflow: hidden;
     }
@@ -674,6 +787,182 @@
       color: var(--blue);
       background: #fff;
     }
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      background: rgba(0,0,0,.36);
+      display: grid;
+      place-items: center;
+      padding: 28px;
+    }
+    .detail-modal {
+      width: min(980px, 96vw);
+      max-height: 90vh;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(0,0,0,.28);
+      display: grid;
+      grid-template-rows: 46px minmax(0, 1fr);
+      border: 1px solid #cfcfcf;
+    }
+    .detail-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      background: #f8f8f8;
+      font-weight: 700;
+    }
+    .detail-close {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      background: transparent;
+      font-size: 22px;
+      color: #555;
+    }
+    .detail-body {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 0;
+    }
+    .detail-media {
+      border-right: 1px solid var(--line);
+      padding: 24px;
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      background: #fbfbfb;
+    }
+    .detail-media-frame {
+      height: 220px;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      border: 1px solid #e2e2e2;
+    }
+    .detail-media-frame img {
+      max-width: 240px;
+      max-height: 180px;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,.14));
+    }
+    .detail-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .detail-actions button,
+    .detail-actions a {
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--blue);
+      background: #fff;
+      color: var(--blue);
+      text-decoration: none;
+    }
+    .detail-actions button {
+      background: var(--blue);
+      color: #fff;
+    }
+    .detail-info {
+      min-width: 0;
+      padding: 22px 24px 28px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+    .detail-info h2 {
+      margin: 0;
+      font-family: "Segoe UI Semibold", "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-size: 21px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: .18px;
+      text-transform: uppercase;
+    }
+    .detail-series {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .detail-desc {
+      color: #333;
+      line-height: 1.65;
+      border-left: 3px solid var(--blue);
+      padding-left: 12px;
+      background: #f8fbff;
+    }
+    .detail-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .detail-stat {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      background: #fff;
+    }
+    .detail-stat span {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+    }
+    .detail-stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 18px;
+    }
+    .detail-section h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+    .model-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .model-chip {
+      border: 1px solid #ddd;
+      background: #fafafa;
+      padding: 5px 8px;
+      font-size: 12px;
+      color: #333;
+      font-family: "Segoe UI Semibold", "Segoe UI", "Microsoft YaHei", sans-serif;
+      letter-spacing: .12px;
+      text-transform: uppercase;
+    }
+    button.model-chip {
+      cursor: pointer;
+    }
+    button.model-chip:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: #f4f7ff;
+    }
+    .diff-list {
+      display: grid;
+      gap: 8px;
+    }
+    .diff-row {
+      border: 1px solid #e1e1e1;
+      padding: 10px;
+      display: grid;
+      gap: 5px;
+      background: #fff;
+    }
+    .diff-row strong {
+      color: #111;
+      font-size: 13px;
+    }
+    .diff-row span {
+      color: #666;
+      font-size: 12px;
+      line-height: 1.45;
+    }
     .empty {
       height: 100%;
       min-height: 120px;
@@ -682,6 +971,21 @@
       color: var(--muted);
       text-align: center;
       padding: 20px;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      z-index: 30;
+      transform: translateX(-50%);
+      min-width: 220px;
+      max-width: min(520px, calc(100vw - 32px));
+      padding: 10px 16px;
+      border-radius: 4px;
+      background: rgba(0,0,0,.82);
+      color: #fff;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
     }
     @media (max-width: 1180px) {
       body { overflow: auto; }
@@ -700,11 +1004,13 @@
       .save-btn { min-width: 0; }
       .top-right { gap: 8px; }
       .product-grid { grid-template-columns: 1fr; }
+      .detail-body { grid-template-columns: 1fr; }
+      .detail-media { border-right: 0; border-bottom: 1px solid var(--line); }
     }
   </style>
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: { primaryColor: "#f2f6ff", primaryBorderColor: "#2867f0", lineColor: "#777", fontFamily: "Arial, Microsoft YaHei, sans-serif" } });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: { primaryColor: "#f2f6ff", primaryBorderColor: "#386dfa", lineColor: "#777", fontFamily: "Segoe UI, Microsoft YaHei, sans-serif" } });
     window.mermaid = mermaid;
     window.dispatchEvent(new Event("mermaid-ready"));
   </script>
@@ -713,13 +1019,13 @@
   <div class="app">
     <nav class="rail">
       <div class="logo">D</div>
-      <button class="rail-btn" title="Project">⌘</button>
-      <button class="rail-btn active" title="Products">□</button>
-      <button class="rail-btn" title="Topology">▦</button>
-      <button class="rail-btn" title="Report">▤</button>
-      <button class="rail-btn" title="Map">⌖</button>
+      <button class="rail-btn" title="Project" data-panel="project">⌘</button>
+      <button class="rail-btn active" title="Products" data-panel="products">□</button>
+      <button class="rail-btn" title="Topology" data-panel="topology">▦</button>
+      <button class="rail-btn" title="Report" data-panel="report">▤</button>
+      <button class="rail-btn" title="Map" data-panel="map">⌖</button>
       <div style="flex:1"></div>
-      <button class="rail-btn" title="Menu">☰</button>
+      <button class="rail-btn" title="Menu" data-panel="menu">☰</button>
     </nav>
 
     <section class="main-shell">
@@ -727,8 +1033,8 @@
         <button class="save-btn" id="saveProjectBtn">▣ Save As a New Project</button>
         <div class="top-right">
           <button class="lang-toggle" id="languageLabel">Global-English</button>
-          <button class="rail-btn" title="Settings">⚙</button>
-          <button class="login">Log In</button>
+          <button class="rail-btn" title="Settings" id="settingsBtn">⚙</button>
+          <button class="login" id="loginBtn">Log In</button>
         </div>
       </header>
 
@@ -753,7 +1059,7 @@
           <div class="catalog-toolbar">
             <div class="catalog-meta">
               <strong id="totalLabel">Total: 0</strong>
-              <label class="checkbox-line"><span class="small-box"></span><span id="newOnlyText">Display New Products Only</span></label>
+              <label class="checkbox-line" id="newOnlyToggle"><span class="small-box"></span><span id="newOnlyText">Display New Products Only</span></label>
             </div>
             <div class="sort-area">
               <select class="sort-select" id="sortSelect">
@@ -762,8 +1068,8 @@
                 <option value="diffs">Diff Coverage</option>
                 <option value="name">Name</option>
               </select>
-              <button class="view-btn active" title="Grid">▦</button>
-              <button class="view-btn" title="List">☰</button>
+              <button class="view-btn active" title="Grid" data-view="grid">▦</button>
+              <button class="view-btn" title="List" data-view="list">☰</button>
             </div>
           </div>
           <div class="product-grid" id="productGrid"></div>
@@ -800,6 +1106,17 @@
     </section>
   </div>
 
+  <div class="detail-overlay" id="detailOverlay" hidden>
+    <section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <div class="detail-titlebar">
+        <span id="detailTitle">Product Details</span>
+        <button class="detail-close" id="detailClose" aria-label="Close">×</button>
+      </div>
+      <div class="detail-body" id="detailBody"></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
   <script>
     const state = {
       locale: (() => {
@@ -810,13 +1127,18 @@
       keyword: "",
       directoryQuery: "",
       sort: "default",
+      view: "grid",
+      newOnly: false,
       scenarioId: "video",
       metrics: {},
       selected: [],
-      drawerOpen: true,
+      drawerOpen: false,
       tool: "topology",
+      detailItem: null,
+      fallbackImages: {},
       data: null,
-      mermaid: ""
+      mermaid: "",
+      toastTimer: null
     };
 
     const categoryOrder = ["camera", "recorder", "display", "switch", "accessory", "access", "intercom", "alarm", "parking", "thermal", "software", "storage", "server", "audio", "fire", "ptz"];
@@ -875,6 +1197,7 @@
     ]).then(([data]) => {
       state.data = data;
       state.locale = data.families[state.locale] ? state.locale : (data.families.en ? "en" : Object.keys(data.families)[0]);
+      state.fallbackImages = buildFallbackImages(data);
       state.metrics = { ...getScenario().defaults };
       applyScenarioSelection();
       bind();
@@ -882,6 +1205,18 @@
     });
 
     function bind() {
+      $("saveProjectBtn").addEventListener("click", saveProject);
+      $("searchBtn").addEventListener("click", () => {
+        renderProducts();
+        showToast(state.locale === "cn" ? "搜索条件已应用" : "Search applied");
+      });
+      $("settingsBtn").addEventListener("click", () => showToast(state.locale === "cn" ? "当前模板已使用 HiTools 风格设置" : "HiTools-style settings are already applied"));
+      $("loginBtn").addEventListener("click", () => showToast(state.locale === "cn" ? "在线模板无需登录即可选型" : "This online template works without login"));
+      document.querySelector(".rail").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-panel]");
+        if (!button) return;
+        handlePanel(button.dataset.panel, button);
+      });
       $("selectedTop").addEventListener("click", () => {
         state.drawerOpen = true;
         renderDrawerState();
@@ -889,6 +1224,18 @@
       $("drawerClose").addEventListener("click", () => {
         state.drawerOpen = false;
         renderDrawerState();
+      });
+      $("detailClose").addEventListener("click", closeDetails);
+      $("detailOverlay").addEventListener("click", (event) => {
+        if (event.target === $("detailOverlay")) closeDetails();
+      });
+      $("detailBody").addEventListener("click", (event) => {
+        const link = event.target.closest("[data-model-link]");
+        if (!link) return;
+        window.open(link.dataset.modelLink, "_blank", "noopener,noreferrer");
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !$("detailOverlay").hidden) closeDetails();
       });
       $("languageLabel").addEventListener("click", () => {
         state.locale = state.locale === "en" ? "cn" : "en";
@@ -900,6 +1247,15 @@
       $("keyword").addEventListener("input", (event) => { state.keyword = event.target.value; renderProducts(); });
       $("directorySearch").addEventListener("input", (event) => { state.directoryQuery = event.target.value; renderCategories(); });
       $("sortSelect").addEventListener("change", (event) => { state.sort = event.target.value; renderProducts(); });
+      $("newOnlyToggle").addEventListener("click", () => {
+        state.newOnly = !state.newOnly;
+        renderProducts();
+      });
+      document.querySelector(".sort-area").addEventListener("click", (event) => {
+        const view = event.target.closest("[data-view]")?.dataset.view;
+        if (!view) return;
+        setView(view);
+      });
       $("categoryList").addEventListener("click", (event) => {
         const row = event.target.closest("[data-category]");
         if (!row) return;
@@ -910,15 +1266,25 @@
       $("productGrid").addEventListener("click", (event) => {
         const detail = event.target.closest("[data-detail]");
         const add = event.target.closest("[data-add]");
-        if (!detail && !add) return;
-        const item = productResults().shown.find((entry) => entry.cardId === (detail?.dataset.detail || add?.dataset.add));
+        const card = event.target.closest("[data-card]");
+        if (!detail && !add && !card) return;
+        const cardId = detail?.dataset.detail || add?.dataset.add || card?.dataset.card;
+        const item = productResults().shown.find((entry) => entry.cardId === cardId);
         if (!item) return;
-        if (detail) showDetails(item);
+        if (detail || (!add && card)) openDetails(item);
         if (add) {
           addProduct(item, item.category);
           state.drawerOpen = true;
           renderDrawerState();
         }
+      });
+      $("productGrid").addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const card = event.target.closest("[data-card]");
+        if (!card) return;
+        event.preventDefault();
+        const item = productResults().shown.find((entry) => entry.cardId === card.dataset.card);
+        if (item) openDetails(item);
       });
       $("selectedList").addEventListener("click", (event) => {
         const inc = event.target.closest("[data-inc]");
@@ -964,9 +1330,14 @@
         renderOutput();
       });
       $("clearAll").addEventListener("click", () => {
+        state.keyword = "";
+        state.directoryQuery = "";
+        state.newOnly = false;
         state.selected = [];
-        renderSelection();
-        renderOutput();
+        $("keyword").value = "";
+        $("directorySearch").value = "";
+        render();
+        showToast(state.locale === "cn" ? "已清空筛选和已选产品" : "Filters and selected products cleared");
       });
       $("copyBtn").addEventListener("click", async () => {
         await navigator.clipboard.writeText(state.mermaid);
@@ -999,7 +1370,7 @@
       $("applyScenario").textContent = isCn ? "生成" : "Generate";
       $("clearAll").textContent = isCn ? "清空全部" : "Clear All";
       $("newOnlyText").textContent = isCn ? "仅显示新产品" : "Display New Products Only";
-      document.querySelector(".login").textContent = isCn ? "登录" : "Log In";
+      $("loginBtn").textContent = isCn ? "登录" : "Log In";
       const sortLabels = isCn ? ["默认", "型号数量", "差异覆盖", "名称"] : ["Default", "Model Count", "Diff Coverage", "Name"];
       Array.from($("sortSelect").options).forEach((option, index) => { option.textContent = sortLabels[index]; });
       const labels = isCn ? ["拓扑", "BOM", "源码"] : ["Topology", "BOM", "Source"];
@@ -1007,10 +1378,51 @@
       $("copyBtn").textContent = isCn ? "复制拓扑" : "Copy Diagram";
       $("svgBtn").textContent = isCn ? "导出 SVG" : "Export SVG";
       $("jsonBtn").textContent = isCn ? "导出 BOM" : "Export BOM";
+      $("newOnlyToggle").classList.toggle("active", state.newOnly);
+      document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
     }
 
     function renderDrawerState() {
       $("workspace").classList.toggle("drawer-open", state.drawerOpen);
+    }
+
+    function handlePanel(panel, button) {
+      if (panel === "project") {
+        saveProject();
+        return;
+      }
+      document.querySelectorAll("[data-panel]").forEach((entry) => entry.classList.toggle("active", entry === button));
+      if (panel === "products") {
+        state.drawerOpen = false;
+        renderDrawerState();
+        showToast(state.locale === "cn" ? "已回到产品选型" : "Back to product selection");
+        return;
+      }
+      if (panel === "topology" || panel === "report") {
+        state.drawerOpen = true;
+        state.tool = panel === "topology" ? "topology" : "bom";
+        document.querySelectorAll("[data-tool]").forEach((tab) => tab.classList.toggle("active", tab.dataset.tool === state.tool));
+        renderDrawerState();
+        renderOutput();
+        showToast(panel === "topology"
+          ? (state.locale === "cn" ? "已打开方案拓扑" : "Topology opened")
+          : (state.locale === "cn" ? "已打开 BOM 报告" : "BOM report opened"));
+        return;
+      }
+      if (panel === "menu") {
+        state.drawerOpen = !state.drawerOpen;
+        renderDrawerState();
+        return;
+      }
+      showToast(state.locale === "cn" ? "这个入口已做成选型模板提示，后续可接官网能力" : "This shortcut is available as a template placeholder");
+    }
+
+    function setView(view) {
+      state.view = view === "list" ? "list" : "grid";
+      renderProducts();
+      showToast(state.view === "list"
+        ? (state.locale === "cn" ? "已切换列表视图" : "List view enabled")
+        : (state.locale === "cn" ? "已切换网格视图" : "Grid view enabled"));
     }
 
     function renderCategories() {
@@ -1030,6 +1442,9 @@
     function renderProducts() {
       const result = productResults();
       $("totalLabel").textContent = `${state.locale === "cn" ? "总数" : "Total"}: ${result.total}`;
+      $("productGrid").classList.toggle("is-list", state.view === "list");
+      $("newOnlyToggle").classList.toggle("active", state.newOnly);
+      document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
       const cards = result.shown.map((product, index) => productCard(product, index)).join("");
       const note = result.total > result.shown.length
         ? `<div class="result-note">${state.locale === "cn" ? `已显示前 ${result.shown.length} 个型号，可继续搜索缩小范围` : `Showing first ${result.shown.length} models. Use search to narrow all results.`}</div>`
@@ -1039,18 +1454,25 @@
 
     function productCard(item, index) {
       const product = item.product;
-      const isNew = index < 8 ? `<span class="new-tag">New</span>` : "";
+      const isNew = index < 8 ? ` <span class="new-tag">New</span>` : "";
+      const image = imageFor(item);
+      const modelName = displayModelName(item);
+      const detailText = state.locale === "cn" ? "详情" : "Details";
+      const addText = state.locale === "cn" ? "加入" : "Add";
+      const imageMarkup = image
+        ? `<img class="product-image${item.product.imageUrl ? "" : " is-fallback"}" src="${escapeHtml(image)}" alt="${escapeHtml(modelName)}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="device ${deviceClass(item.category)}" hidden></div>`
+        : `<div class="device ${deviceClass(item.category)}"></div>`;
       return `
-        <article class="product-card">
+        <article class="product-card" data-card="${escapeHtml(item.cardId)}" role="button" tabindex="0" aria-label="${escapeHtml(detailText)} ${escapeHtml(modelName)}">
           <div class="tag-row"><span class="mini-tag">SPEC</span><span class="mini-tag">VS</span><span class="star">☆</span></div>
-          <div class="visual"><div class="device ${deviceClass(item.category)}"></div></div>
+          <div class="visual">${imageMarkup}</div>
           <div class="card-info">
-            <div class="product-title">${escapeHtml(item.model)}${isNew}</div>
-            <div class="product-desc">${escapeHtml(product.name)} · ${product.modelCount} models · ${product.diffFields} diff fields</div>
+            <div class="product-title">${escapeHtml(modelName)}${isNew}</div>
+            <div class="product-desc">${escapeHtml(product.description || product.name)} · ${product.diffFields} diff fields</div>
           </div>
           <div class="hover-actions">
-            <button data-detail="${escapeHtml(item.cardId)}">Details</button>
-            <button data-add="${escapeHtml(item.cardId)}">Add</button>
+            <button data-detail="${escapeHtml(item.cardId)}">${detailText}</button>
+            <button data-add="${escapeHtml(item.cardId)}">${addText}</button>
           </div>
         </article>
       `;
@@ -1074,8 +1496,9 @@
       }
       $("selectedList").innerHTML = state.selected.map((item) => `
         <div class="selected-item">
+          <div class="selected-thumb">${imageFor(item) ? `<img src="${escapeHtml(imageFor(item))}" alt="${escapeHtml(displayModelName(item))}">` : `<div class="device ${deviceClass(item.category)}"></div>`}</div>
           <div>
-            <strong>${escapeHtml(item.model)}</strong>
+            <strong>${escapeHtml(displayModelName(item))}</strong>
             <span>${escapeHtml(item.product.name)} · ${escapeHtml(labelForCategory(item.category))}</span>
             <a href="${escapeHtml(item.url || item.product.url)}" target="_blank" rel="noreferrer">${state.locale === "cn" ? "详情" : "Details"}</a>
           </div>
@@ -1112,7 +1535,7 @@
     }
 
     function renderBom() {
-      const rows = state.selected.map((item) => `<tr><td>${escapeHtml(item.model)}</td><td>${item.qty}</td><td>${escapeHtml(labelForCategory(item.category))}</td></tr>`).join("");
+      const rows = state.selected.map((item) => `<tr><td>${escapeHtml(displayModelName(item))}</td><td>${item.qty}</td><td>${escapeHtml(labelForCategory(item.category))}</td></tr>`).join("");
       const headers = state.locale === "cn"
         ? ["型号", "数量", "类别"]
         : ["Model", "Qty", "Category"];
@@ -1149,7 +1572,7 @@
       if (byCategory.has("alarm") || byCategory.has("fire")) lines.push("  platform --> alarm");
       if (byCategory.has("display")) lines.push("  platform --> display");
       if (byCategory.has("audio")) lines.push("  platform --> audio");
-      lines.push("  classDef core fill:#eaf1ff,stroke:#2867f0,color:#111");
+      lines.push("  classDef core fill:#eaf1ff,stroke:#386dfa,color:#111");
       lines.push("  classDef edge fill:#fff,stroke:#aeb7c2,color:#111");
       lines.push("  class client,platform,recorder core");
       return lines.join("\n");
@@ -1178,10 +1601,76 @@
       }
     }
 
-    function showDetails(item) {
+    function openDetails(item) {
+      state.detailItem = item;
+      renderDetailModal();
+      $("detailOverlay").hidden = false;
+    }
+
+    function closeDetails() {
+      $("detailOverlay").hidden = true;
+      state.detailItem = null;
+    }
+
+    function renderDetailModal() {
+      const item = state.detailItem;
+      if (!item) return;
       const product = item.product || item;
-      const diff = product.differenceSummary?.map((item) => `${item.field}: ${item.values.join(" / ")}`).join("\n") || "No spec differences collected yet.";
-      alert(`${item.model || product.name}\n\nSeries: ${product.name}\nModels: ${product.modelCount}\nCompared: ${product.comparedModels}\nDiff fields: ${product.diffFields}\n\n${diff}`);
+      const isCn = state.locale === "cn";
+      const image = imageFor(item);
+      const title = displayModelName(item);
+      const stats = [
+        [isCn ? "所属系列" : "Series", product.name],
+        [isCn ? "系列型号数" : "Models", product.modelCount],
+        [isCn ? "差异字段" : "Diff Fields", product.diffFields]
+      ];
+      const models = (product.models || []).slice(0, 18).map((model) => {
+        const label = displayModelName({ model: model.name, url: model.url });
+        return `<button class="model-chip" data-model-link="${escapeHtml(model.url || product.url)}">${escapeHtml(label)}</button>`;
+      }).join("");
+      const diffs = product.differenceSummary?.length
+        ? product.differenceSummary.map((difference) => `
+          <div class="diff-row">
+            <strong>${escapeHtml(difference.field)}</strong>
+            <span>${escapeHtml(difference.values.join(" / "))}</span>
+          </div>
+        `).join("")
+        : `<div class="diff-row"><span>${isCn ? "这个系列还没有采集到参数差异。" : "No collected spec differences for this series yet."}</span></div>`;
+      $("detailTitle").textContent = isCn ? "产品详情" : "Product Details";
+      $("detailBody").innerHTML = `
+        <div class="detail-media">
+          <div class="detail-media-frame">
+            ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<div class="device ${deviceClass(item.category)}"></div>`}
+          </div>
+          <div class="detail-actions">
+            <button id="detailAdd">${isCn ? "加入已选" : "Add"}</button>
+            <a href="${escapeHtml(item.url || product.url)}" target="_blank" rel="noreferrer">${isCn ? "官网详情" : "Official Detail"}</a>
+          </div>
+        </div>
+        <div class="detail-info">
+          <div>
+            <h2>${escapeHtml(title)}</h2>
+            <div class="detail-series">${escapeHtml(labelForCategory(item.category))} · ${escapeHtml(product.pathText || product.name)}</div>
+          </div>
+          <div class="detail-desc">${escapeHtml(product.description || product.detailTitle || product.name)}</div>
+          <div class="detail-stats">
+            ${stats.map(([label, value]) => `<div class="detail-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}
+          </div>
+          <div class="detail-section">
+            <h3>${isCn ? "同系列型号" : "Same Series Models"}</h3>
+            <div class="model-chips">${models || `<span class="model-chip">${escapeHtml(title)}</span>`}</div>
+          </div>
+          <div class="detail-section">
+            <h3>${isCn ? "同系列不同型号差异" : "Series Model Differences"}</h3>
+            <div class="diff-list">${diffs}</div>
+          </div>
+        </div>
+      `;
+      $("detailAdd").addEventListener("click", () => {
+        addProduct(item, item.category);
+        state.drawerOpen = true;
+        renderDrawerState();
+      });
     }
 
     function productResults() {
@@ -1192,13 +1681,14 @@
       });
       if (q.length) {
         list = list.filter((item) => {
-          const haystack = [item.model, item.product.name, item.product.pathText].join(" ").toLowerCase();
+          const haystack = [item.model, displayModelName(item), item.product.name, item.product.pathText].join(" ").toLowerCase();
           return q.every((word) => haystack.includes(word));
         });
       }
       if (state.sort === "models") list.sort((a, b) => b.product.modelCount - a.product.modelCount);
       if (state.sort === "diffs") list.sort((a, b) => b.product.diffFields - a.product.diffFields);
       if (state.sort === "name") list.sort((a, b) => a.model.localeCompare(b.model));
+      if (state.newOnly) list = list.slice(0, 8);
       return { total: list.length, shown: list.slice(0, 96) };
     }
 
@@ -1209,8 +1699,56 @@
         product,
         category,
         model: modelName,
-        url: model?.url || product.url
+        url: model?.url || product.url,
+        imageUrl: product.imageUrl || state.fallbackImages[category] || ""
       };
+    }
+
+    function imageFor(item) {
+      return item.imageUrl || item.product?.imageUrl || state.fallbackImages[item.category] || "";
+    }
+
+    function displayModelName(item) {
+      const fromUrl = modelCodeFromUrl(item?.url);
+      const raw = item?.model || item?.name || "";
+      if (fromUrl) return fromUrl;
+      if (looksLikeModelCode(raw)) return normalizeModelCode(raw);
+      return raw;
+    }
+
+    function modelCodeFromUrl(value) {
+      try {
+        const segment = new URL(value).pathname.split("/").filter(Boolean).at(-1) || "";
+        const normalized = normalizeModelCode(decodeURIComponent(segment));
+        return looksLikeModelCode(normalized) ? normalized : "";
+      } catch {
+        return "";
+      }
+    }
+
+    function normalizeModelCode(value) {
+      return String(value || "")
+        .replace(/^[\s-]+|[\s-]+$/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .toUpperCase();
+    }
+
+    function looksLikeModelCode(value) {
+      const text = String(value || "").trim();
+      return /[A-Z]{1,8}[\s-]*\d/i.test(text) && text.length <= 90;
+    }
+
+    function buildFallbackImages(data) {
+      const fallbacks = {};
+      for (const localeFamilies of Object.values(data.families || {})) {
+        for (const [category, items] of Object.entries(localeFamilies || {})) {
+          if (fallbacks[category]) continue;
+          const imageItem = (items || []).find((item) => item.imageUrl);
+          if (imageItem?.imageUrl) fallbacks[category] = imageItem.imageUrl;
+        }
+      }
+      return fallbacks;
     }
 
     function getScenario() {
@@ -1235,12 +1773,40 @@
 
     function exportSvg() {
       const svg = $("topologyRender").querySelector("svg");
-      if (!svg) return;
+      if (!svg) {
+        showToast(state.locale === "cn" ? "当前没有可导出的拓扑 SVG" : "No topology SVG to export yet");
+        return;
+      }
       download("hikvision-topology.svg", new XMLSerializer().serializeToString(svg), "image/svg+xml");
+      showToast(state.locale === "cn" ? "拓扑 SVG 已导出" : "Topology SVG exported");
     }
 
     function exportJson() {
-      download("hikvision-bom.json", JSON.stringify({ selected: state.selected.map((item) => ({ model: item.model, series: item.product.name, category: labelForCategory(item.category), qty: item.qty, url: item.url || item.product.url })), mermaid: state.mermaid, generatedAt: new Date().toISOString() }, null, 2), "application/json");
+      download("hikvision-bom.json", JSON.stringify(projectPayload(), null, 2), "application/json");
+      showToast(state.locale === "cn" ? "BOM 已导出" : "BOM exported");
+    }
+
+    function saveProject() {
+      download("hikvision-selector-project.json", JSON.stringify(projectPayload(), null, 2), "application/json");
+      showToast(state.locale === "cn" ? "项目已保存为 JSON" : "Project saved as JSON");
+    }
+
+    function projectPayload() {
+      return {
+        locale: state.locale,
+        scenarioId: state.scenarioId,
+        metrics: state.metrics,
+        selected: state.selected.map((item) => ({
+          model: displayModelName(item),
+          rawModel: item.model,
+          series: item.product.name,
+          category: labelForCategory(item.category),
+          qty: item.qty,
+          url: item.url || item.product.url
+        })),
+        mermaid: state.mermaid,
+        generatedAt: new Date().toISOString()
+      };
     }
 
     function download(filename, content, type) {
@@ -1253,6 +1819,13 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+    }
+
+    function showToast(message) {
+      $("toast").textContent = message;
+      $("toast").hidden = false;
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => { $("toast").hidden = true; }, 1800);
     }
 
     function escapeHtml(value) {

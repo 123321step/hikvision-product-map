@@ -8,6 +8,7 @@
     "update:sample": "node scripts/update.mjs --max-pages-per-locale=20 --max-models-per-series=8",
     "build:public": "node scripts/build-public-site.mjs",
     "build:selector": "node scripts/build-selector-data.mjs",
+    "build:selector:assets": "node scripts/build-selector-data.mjs --refresh-assets",
     "build:diffs": "node scripts/build-diff-data.mjs",
     "serve": "node scripts/serve.mjs"
   },

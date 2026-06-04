@@ -4,16 +4,16 @@ import path from "node:path";
 const ROOT = process.cwd();
 const SITE_DIR = path.join(ROOT, "site");
 const MINDMAP_DIR = path.join(SITE_DIR, "mindmaps");
+const CATALOG_FILE = path.join(SITE_DIR, "catalog.json");
 const LOCALES = [
   { code: "cn", label: "\u4e2d\u6587", sitemap: "https://www.hikvision.com/cn/sitemap.xml", prefix: "/cn/products/" },
   { code: "en", label: "English", sitemap: "https://www.hikvision.com/en/sitemap.xml", prefix: "/en/products/" }
 ];
 
 await mkdir(SITE_DIR, { recursive: true });
-await rm(MINDMAP_DIR, { recursive: true, force: true });
-await mkdir(MINDMAP_DIR, { recursive: true });
 
 const diffData = await readJson(path.join(SITE_DIR, "diff-data.json"), null);
+const previousCatalog = await readJson(CATALOG_FILE, null);
 const diffLookup = new Map();
 for (const locale of Object.values(diffData?.locales || {})) {
   for (const series of locale.topSeries || []) {
@@ -23,25 +23,36 @@ for (const locale of Object.values(diffData?.locales || {})) {
 
 const locales = {};
 for (const locale of LOCALES) {
-  const xml = await fetch(locale.sitemap, { headers: { "user-agent": "Mozilla/5.0" } }).then((r) => r.text());
-  const entries = [...xml.matchAll(/<url><loc>([^<]+)<\/loc>(?:<lastmod>([^<]+)<\/lastmod>)?/g)]
-    .map((match) => ({ url: match[1], lastmod: match[2] || "" }))
-    .filter((entry) => entry.url.includes(locale.prefix))
-    .map((entry) => buildEntry(locale, entry));
+  try {
+    const response = await fetch(locale.sitemap, {
+      headers: { "user-agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(30000)
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const xml = await response.text();
+    const entries = [...xml.matchAll(/<url><loc>([^<]+)<\/loc>(?:<lastmod>([^<]+)<\/lastmod>)?/g)]
+      .map((match) => ({ url: match[1], lastmod: match[2] || "" }))
+      .filter((entry) => entry.url.includes(locale.prefix))
+      .map((entry) => buildEntry(locale, entry));
 
-  const tree = buildTree(entries);
-  const series = buildSeries(entries, locale.code);
-  locales[locale.code] = {
-    code: locale.code,
-    label: locale.label,
-    total: entries.length,
-    models: entries.filter((entry) => entry.kind === "model").length,
-    directories: entries.filter((entry) => entry.kind === "directory").length,
-    seriesCount: series.length,
-    entries,
-    tree,
-    series
-  };
+    const tree = buildTree(entries);
+    const series = buildSeries(entries, locale.code);
+    locales[locale.code] = {
+      code: locale.code,
+      label: locale.label,
+      total: entries.length,
+      models: entries.filter((entry) => entry.kind === "model").length,
+      directories: entries.filter((entry) => entry.kind === "directory").length,
+      seriesCount: series.length,
+      entries,
+      tree,
+      series
+    };
+  } catch (error) {
+    const cached = previousCatalog?.locales?.[locale.code];
+    if (!cached) throw error;
+    locales[locale.code] = cached;
+  }
 }
 
 const catalog = {
@@ -49,6 +60,9 @@ const catalog = {
   source: "Hikvision public sitemap",
   locales
 };
+
+await rm(MINDMAP_DIR, { recursive: true, force: true });
+await mkdir(MINDMAP_DIR, { recursive: true });
 
 const mindmaps = [];
 for (const locale of Object.values(catalog.locales)) {
@@ -95,7 +109,7 @@ for (const locale of Object.values(catalog.locales)) {
   }
 }
 
-await writeFile(path.join(SITE_DIR, "catalog.json"), JSON.stringify(catalog), "utf8");
+await writeFile(CATALOG_FILE, JSON.stringify(catalog), "utf8");
 await writeFile(
   path.join(MINDMAP_DIR, "index.json"),
   JSON.stringify({ generatedAt: new Date().toISOString(), maps: mindmaps }),
