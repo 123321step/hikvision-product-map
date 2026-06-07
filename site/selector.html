@@ -209,7 +209,9 @@
     .brand-select {
       justify-content: space-between;
       font-size: 14px;
+      cursor: pointer;
     }
+    .brand-select:hover { border-color: var(--blue); color: var(--blue); }
     .category-list {
       min-height: 0;
       overflow: auto;
@@ -226,8 +228,29 @@
       cursor: pointer;
       padding-right: 6px;
     }
-    .category-row:hover, .category-row.active { background: #f4f7ff; color: var(--blue); }
-    .twisty { color: #777; font-size: 18px; line-height: 1; }
+    .category-row.depth-1 {
+      grid-template-columns: 28px 18px 1fr auto;
+      padding-left: 8px;
+    }
+    .category-row:hover,
+    .category-row.active,
+    .category-row.parent-active { background: #f4f7ff; color: var(--blue); }
+    .category-row.depth-1.active { background: #eef4ff; }
+    .twisty {
+      width: 16px;
+      height: 24px;
+      border: 0;
+      background: transparent;
+      color: #777;
+      font-size: 18px;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      transition: transform .14s ease;
+    }
+    .twisty.expanded { transform: rotate(90deg); }
+    .twisty.empty { visibility: hidden; pointer-events: none; }
     .box {
       width: 16px;
       height: 16px;
@@ -237,12 +260,16 @@
       place-items: center;
       font-size: 12px;
       color: var(--blue);
+      padding: 0;
     }
-    .category-row.active .box::after { content: "✓"; }
+    .box:hover { border-color: var(--blue); background: #fff; }
+    .category-row.active .box::after,
+    .category-row.parent-active .box::after { content: "✓"; }
     .category-name {
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .category-row.depth-1 .category-name { padding-left: 4px; }
     .cat-count {
       color: var(--muted);
       font-size: 12px;
@@ -1050,7 +1077,7 @@
       <div class="workspace" id="workspace">
         <aside class="directory">
           <div class="dir-search">⌕ <input id="directorySearch" placeholder="Search Directory"></div>
-          <div class="brand-select">HIKVISION <span>⌄</span></div>
+          <div class="brand-select" id="brandSelect">HIKVISION <span>⌄</span></div>
           <div class="category-list" id="categoryList"></div>
           <div class="clear-all" id="clearAll">Clear All</div>
         </aside>
@@ -1124,6 +1151,8 @@
         return site === "cn" || site === "zh" ? "cn" : "en";
       })(),
       category: "camera",
+      selectedSeriesId: "",
+      expandedCategories: new Set(["camera"]),
       keyword: "",
       directoryQuery: "",
       sort: "default",
@@ -1206,6 +1235,7 @@
 
     function bind() {
       $("saveProjectBtn").addEventListener("click", saveProject);
+      $("brandSelect").addEventListener("click", () => showToast(state.locale === "cn" ? "当前品牌：HIKVISION" : "Current brand: HIKVISION"));
       $("searchBtn").addEventListener("click", () => {
         renderProducts();
         showToast(state.locale === "cn" ? "搜索条件已应用" : "Search applied");
@@ -1240,6 +1270,8 @@
       $("languageLabel").addEventListener("click", () => {
         state.locale = state.locale === "en" ? "cn" : "en";
         state.category = categoryOrder.find((key) => state.data.families[state.locale]?.[key]?.length) || state.category;
+        state.selectedSeriesId = "";
+        state.expandedCategories = new Set([state.category]);
         state.metrics = { ...getScenario().defaults };
         applyScenarioSelection();
         render();
@@ -1257,9 +1289,17 @@
         setView(view);
       });
       $("categoryList").addEventListener("click", (event) => {
+        const toggle = event.target.closest("[data-toggle-category]");
         const row = event.target.closest("[data-category]");
-        if (!row) return;
-        state.category = row.dataset.category;
+        if (!row && !toggle) return;
+        const category = toggle?.dataset.toggleCategory || row.dataset.category;
+        if (toggle) {
+          toggleCategory(category);
+          return;
+        }
+        state.category = category;
+        state.selectedSeriesId = row.dataset.seriesId || "";
+        state.expandedCategories.add(category);
         renderCategories();
         renderProducts();
       });
@@ -1333,6 +1373,8 @@
         state.keyword = "";
         state.directoryQuery = "";
         state.newOnly = false;
+        state.selectedSeriesId = "";
+        state.expandedCategories = new Set([state.category]);
         state.selected = [];
         $("keyword").value = "";
         $("directorySearch").value = "";
@@ -1386,6 +1428,15 @@
       $("workspace").classList.toggle("drawer-open", state.drawerOpen);
     }
 
+    function toggleCategory(category) {
+      if (state.expandedCategories.has(category)) state.expandedCategories.delete(category);
+      else state.expandedCategories.add(category);
+      state.category = category;
+      state.selectedSeriesId = "";
+      renderCategories();
+      renderProducts();
+    }
+
     function handlePanel(panel, button) {
       if (panel === "project") {
         saveProject();
@@ -1428,14 +1479,47 @@
     function renderCategories() {
       const q = state.directoryQuery.trim().toLowerCase();
       const groups = state.data.families[state.locale] || {};
-      const rows = categoryOrder
-        .filter((key) => groups[key]?.length)
-        .filter((key) => !q || labelForCategory(key).toLowerCase().includes(q))
-        .map((key) => {
-          const active = key === state.category ? " active" : "";
-          const count = groups[key].reduce((sum, product) => sum + (product.models?.length || product.modelCount || 1), 0);
-          return `<div class="category-row${active}" data-category="${escapeHtml(key)}"><span class="twisty">›</span><span class="box"></span><span class="category-name">${escapeHtml(labelForCategory(key))}</span><span class="cat-count">${count}</span></div>`;
+      const rows = [];
+      for (const key of categoryOrder) {
+        const products = groups[key] || [];
+        if (!products.length) continue;
+        const label = labelForCategory(key);
+        const labelMatches = !q || label.toLowerCase().includes(q);
+        const matchingSeries = products.filter((product) => {
+          if (!q) return true;
+          const modelText = (product.models || []).slice(0, 8).map((model) => model.name).join(" ");
+          return [product.name, product.pathText, modelText].join(" ").toLowerCase().includes(q);
         });
+        if (!labelMatches && !matchingSeries.length) continue;
+
+        const expanded = state.expandedCategories.has(key) || Boolean(q);
+        const active = key === state.category && !state.selectedSeriesId ? " active" : "";
+        const parentActive = key === state.category && state.selectedSeriesId ? " parent-active" : "";
+        const count = products.reduce((sum, product) => sum + seriesModelCount(product), 0);
+        rows.push(`
+          <div class="category-row depth-0${active}${parentActive}" data-category="${escapeHtml(key)}">
+            <button class="twisty${expanded ? " expanded" : ""}" data-toggle-category="${escapeHtml(key)}" aria-label="${expanded ? "Collapse" : "Expand"} ${escapeHtml(label)}">›</button>
+            <button class="box" data-category="${escapeHtml(key)}" aria-label="${escapeHtml(label)}"></button>
+            <span class="category-name">${escapeHtml(label)}</span>
+            <span class="cat-count">${count}</span>
+          </div>
+        `);
+
+        if (!expanded) continue;
+        const childProducts = labelMatches ? products : matchingSeries;
+        for (const product of childProducts.slice(0, 80)) {
+          const childActive = key === state.category && state.selectedSeriesId === product.id ? " active" : "";
+          const seriesKey = `${key}::${product.id}`;
+          rows.push(`
+            <div class="category-row depth-1${childActive}" data-category="${escapeHtml(key)}" data-series-id="${escapeHtml(product.id)}" data-series-key="${escapeHtml(seriesKey)}">
+              <span class="twisty">${childProducts.length ? "›" : ""}</span>
+              <button class="box" data-category="${escapeHtml(key)}" data-series-id="${escapeHtml(product.id)}" data-series-key="${escapeHtml(seriesKey)}" aria-label="${escapeHtml(product.name)}"></button>
+              <span class="category-name">${escapeHtml(product.name)}</span>
+              <span class="cat-count">${seriesModelCount(product)}</span>
+            </div>
+          `);
+        }
+      }
       $("categoryList").innerHTML = rows.join("");
     }
 
@@ -1450,6 +1534,10 @@
         ? `<div class="result-note">${state.locale === "cn" ? `已显示前 ${result.shown.length} 个型号，可继续搜索缩小范围` : `Showing first ${result.shown.length} models. Use search to narrow all results.`}</div>`
         : "";
       $("productGrid").innerHTML = cards ? `${cards}${note}` : `<div class="empty">${state.locale === "cn" ? "暂无产品" : "No products"}</div>`;
+    }
+
+    function seriesModelCount(product) {
+      return product.models?.length || product.modelCount || 1;
     }
 
     function productCard(item, index) {
@@ -1675,7 +1763,9 @@
 
     function productResults() {
       const q = state.keyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
-      let list = (state.data.families[state.locale]?.[state.category] || []).flatMap((product) => {
+      let products = state.data.families[state.locale]?.[state.category] || [];
+      if (state.selectedSeriesId) products = products.filter((product) => product.id === state.selectedSeriesId);
+      let list = products.flatMap((product) => {
         const models = product.models?.length ? product.models : [{ name: product.name, url: product.url }];
         return models.map((model, index) => toModelItem(product, state.category, index, model));
       });
